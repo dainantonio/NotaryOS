@@ -621,3 +621,327 @@ canvas {
   filter: saturate(0.9);
 }
 /* ===== END PREMIUM ENTERPRISE UI UPGRADE ===== */
+
+/* ============================================================
+   NOTARYOS UI ENHANCEMENT — GLASSMORPHISM + MICRO-ANIMATIONS
+   Paste this entire block at the END of your existing styles.css
+   ============================================================ */
+
+/* --- Glass Effects --- */
+.glass {
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.glass-dark {
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.glass-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+/* --- Gradient Mesh Backgrounds --- */
+.gradient-mesh-indigo {
+    background: 
+        radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(59, 130, 246, 0.10) 0%, transparent 50%),
+        radial-gradient(ellipse at 60% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 50%);
+}
+
+.gradient-mesh-emerald {
+    background:
+        radial-gradient(ellipse at 30% 40%, rgba(16, 185, 129, 0.10) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 70%, rgba(52, 211, 153, 0.08) 0%, transparent 50%);
+}
+
+.gradient-mesh-amber {
+    background:
+        radial-gradient(ellipse at 40% 30%, rgba(245, 158, 11, 0.10) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 60%, rgba(251, 191, 36, 0.08) 0%, transparent 50%);
+}
+
+/* --- Animated Gradient Border --- */
+.glow-border {
+    position: relative;
+    overflow: hidden;
+}
+
+.glow-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1.5px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.5), rgba(59, 130, 246, 0.3), rgba(139, 92, 246, 0.5));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.glow-border:hover::before {
+    opacity: 1;
+}
+
+/* --- Staggered Entrance Animations --- */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.95) translateY(8px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes slideInRight {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+}
+
+@keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+    50% { box-shadow: 0 0 20px 4px rgba(99, 102, 241, 0.15); }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+
+.anim-fade-up { animation: fadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; opacity: 0; }
+.anim-fade-scale { animation: fadeInScale 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards; opacity: 0; }
+.anim-slide-right { animation: slideInRight 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards; opacity: 0; }
+
+.anim-delay-1 { animation-delay: 0.05s; }
+.anim-delay-2 { animation-delay: 0.1s; }
+.anim-delay-3 { animation-delay: 0.15s; }
+.anim-delay-4 { animation-delay: 0.2s; }
+.anim-delay-5 { animation-delay: 0.25s; }
+.anim-delay-6 { animation-delay: 0.3s; }
+.anim-delay-7 { animation-delay: 0.35s; }
+.anim-delay-8 { animation-delay: 0.4s; }
+
+/* --- Enhanced KPI Cards --- */
+.kpi-enhanced {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.kpi-enhanced:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+}
+
+.kpi-enhanced .kpi-icon-ring {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.kpi-enhanced .kpi-icon-ring::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 16px;
+    background: inherit;
+    opacity: 0.25;
+    filter: blur(8px);
+    z-index: -1;
+}
+
+/* --- Gradient Text --- */
+.gradient-text-indigo {
+    background: linear-gradient(135deg, #6366f1, #3b82f6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.gradient-text-emerald {
+    background: linear-gradient(135deg, #10b981, #34d399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.gradient-text-rose {
+    background: linear-gradient(135deg, #f43f5e, #fb7185);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* --- Quick Action Pills --- */
+.action-pill {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.action-pill:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    border-color: rgba(99, 102, 241, 0.3);
+    background: rgba(255, 255, 255, 0.85);
+}
+
+/* --- Timeline dot styling --- */
+.timeline-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    position: relative;
+}
+
+.timeline-dot::after {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: calc(100% + 8px);
+    background: rgba(148, 163, 184, 0.2);
+}
+
+/* --- Shimmer loading effect --- */
+.shimmer-bg {
+    background: linear-gradient(90deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+
+/* --- Floating pulse for live indicators --- */
+.pulse-live {
+    animation: pulseGlow 2.5s ease-in-out infinite;
+}
+
+/* --- Enhanced chart container --- */
+.chart-glass {
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+/* --- Action item cards --- */
+.action-item-card {
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 14px;
+    transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.action-item-card:hover {
+    transform: translateY(-2px) scale(1.005);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.06);
+    border-color: rgba(99, 102, 241, 0.2);
+}
+
+/* --- Dashboard background mesh (applied to dashboard container) --- */
+.dash-bg-mesh {
+    position: relative;
+}
+
+.dash-bg-mesh::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 600px;
+    background:
+        radial-gradient(ellipse at 15% 10%, rgba(99, 102, 241, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 30%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(139, 92, 246, 0.04) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.dash-bg-mesh > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* --- Sidebar active glow --- */
+.sidebar-item--active {
+    position: relative;
+}
+
+.sidebar-item--active::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04));
+    pointer-events: none;
+}
+
+/* --- Theme overrides for glass (works with existing themes) --- */
+[data-theme="dark"] .glass-card,
+[data-theme="midnight"] .glass-card {
+    background: rgba(30, 41, 59, 0.55);
+    border-color: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .action-pill,
+[data-theme="midnight"] .action-pill {
+    background: rgba(30, 41, 59, 0.6);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .action-item-card,
+[data-theme="midnight"] .action-item-card {
+    background: rgba(30, 41, 59, 0.5);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .chart-glass,
+[data-theme="midnight"] .chart-glass {
+    background: rgba(30, 41, 59, 0.55);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .kpi-enhanced:hover,
+[data-theme="midnight"] .kpi-enhanced:hover {
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+}
+
