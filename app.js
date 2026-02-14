@@ -2817,6 +2817,9 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
 
             /* --- Derived data (same logic, preserved) --- */
             const paidAppointments = safeAppointments.filter(a => a.status === 'Paid');
+            const completedAppointments = safeAppointments.filter(a => a.status === 'Completed');
+            const scheduled = safeAppointments.filter(a => a.status === 'Scheduled');
+
             const ytdRevenue = paidAppointments.reduce((sum, a) => sum + parseFloat(a.fee || 0), 0);
             const scheduled = safeAppointments.filter(a => a.status === 'Scheduled');
             const completedAppts = safeAppointments.filter(a => a.status === 'Completed');
@@ -2827,7 +2830,10 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
             const nextScheduled = [...scheduled]
                 .map(a => ({ ...a, dt: new Date(`${a.date || ''}T${a.time || '00:00'}`) }))
                 .filter(a => !isNaN(a.dt.getTime()) && a.dt >= now)
-                .sort((a, b) => a.dt - b.dt)[0] || null;
+                .sort((a, b) => a.dt - b.dt)
+                .slice(0, 4);
+
+            const nextScheduled = upcomingSignings[0] || null;
 
             const expiringCreds = safeCredentials
                 .map(c => ({ ...c, expDate: new Date(c.expiry) }))
@@ -2939,6 +2945,29 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                     <div className="f5-anim f5-d1" style={{marginBottom: 24}}>
                         <SetupChecklistCard user={user} appointments={appointments} setView={setView} onOpenSettings={onOpenSettings} />
                     </div>
+                );
+            };
+
+            const sparkJobs = [0.22, 0.34, 0.31, 0.48, 0.42, 0.61, 0.56, 0.7, 0.63, 0.52, 0.69, 0.86];
+            const sparkRevenue = [0.18, 0.21, 0.25, 0.28, 0.22, 0.31, 0.35, 0.33, 0.41, 0.45, 0.48, 0.52];
+            const sparkRisks = [0.64, 0.52, 0.7, 0.48, 0.62, 0.5, 0.58, 0.46, 0.38, 0.49, 0.57, 0.68];
+            const sparkInvoices = [0.2, 0.34, 0.29, 0.46, 0.4, 0.58, 0.63, 0.71, 0.67, 0.79, 0.76, 0.87];
+
+            return (
+                <div className="p-4 md:p-6 lg:p-8 max-w-[1280px] mx-auto space-y-6">
+                    <header className="flex items-start justify-between gap-4 flex-wrap">
+                        <div>
+                            <h1 className="text-[26px] leading-tight font-semibold text-slate-900">Dashboard</h1>
+                            <p className="text-slate-500 text-sm mt-1">{dateLabel}</p>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                            <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 font-medium"><i className="fas fa-circle text-blue-400 text-[8px] mr-1.5"></i>Trusted Workflow</span>
+                            <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 font-medium"><i className="fas fa-circle text-blue-400 text-[8px] mr-1.5"></i>Sync Online</span>
+                        </div>
+                    </header>
+
+                    <section className="bg-white rounded-2xl p-4 md:p-5 shadow-sm space-y-4">
+                        <h2 className="text-base font-medium text-slate-900">Today at a Glance</h2>
 
                     {/* ===== PROFILE COMPLETION (preserved) ===== */}
                     {(() => {
@@ -2957,8 +2986,6 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                                     <button className="f5-btn-primary" onClick={() => { if(onOpenSettings) onOpenSettings(); }}>Update Profile</button>
                                 </div>
                             </div>
-                        );
-                    })()}
 
                     {/* ===== TODAY AT A GLANCE ===== */}
                     <div className="f5-anim f5-d2" style={{marginBottom: 16}}>
@@ -3003,6 +3030,7 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                                     <div className="f5-kpi-spark">
                                         <Sparkline data={riskSparkData} color={openRisks > 0 ? '#dc2626' : '#334155'} width={80} height={32} />
                                     </div>
+                                    <Sparkline points={sparkRisks} stroke="#f43f5e" fill="rgba(244,63,94,0.08)" />
                                 </div>
                             </div>
                         </div>
@@ -3170,6 +3198,7 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                                                         {s.address ? s.address.split(',')[0] : '—'}
                                                         {s.type ? ` · ${s.type}` : ''}
                                                     </div>
+                                                    <span className={`text-[11px] px-2 py-1 rounded-full font-semibold ${statusPill(item.status)}`}>{item.status || 'Scheduled'}</span>
                                                 </div>
                                                 <button style={{background:'none', border:'none', cursor:'pointer', color:'#94a3b8', padding:4}} title="Details">
                                                     <i className="fas fa-envelope" style={{fontSize:12}}></i>
@@ -3259,7 +3288,6 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                 </div>
             );
         };
-
 
         const AppointmentForm = ({ onSave, onCancel, initialData }) => {
             const [formData, setFormData] = useState({ clientName: '', date: '', time: '', fee: '', status: 'Scheduled', address: '', phone: '', email: '', type: '', notes: '' });
