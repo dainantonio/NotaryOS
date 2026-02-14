@@ -2147,14 +2147,30 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
             };
 
             const handleGoogleAuth = async () => {
+                setError('');
                 setIsLoading(true);
-                try { 
-                    const provider = new firebase.auth.GoogleAuthProvider(); 
-                    await firebase.auth().signInWithPopup(provider); 
-                } catch (err) { 
-                    setError(err.message); 
+                try {
+                    if (!window.firebase || !firebase.auth) {
+                        throw new Error('Google sign-in is not configured on this device.');
+                    }
+                    const provider = new firebase.auth.GoogleAuthProvider();
+                    const result = await firebase.auth().signInWithPopup(provider);
+                    const fbUser = result?.user || firebase.auth().currentUser;
+                    if (!fbUser) {
+                        throw new Error('Google sign-in did not return a user profile. Please try again.');
+                    }
+                    onAuth({
+                        id: fbUser.uid || 'google-user',
+                        name: fbUser.displayName || 'User',
+                        email: fbUser.email || formData.email || '',
+                        plan: 'free',
+                        role: 'solo'
+                    });
+                } catch (err) {
+                    setError(err?.message || 'Google sign-in failed. Please try again.');
+                } finally {
                     setIsLoading(false);
-                } 
+                }
             };
 
             return (
