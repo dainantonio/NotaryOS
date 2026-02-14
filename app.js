@@ -157,6 +157,29 @@
             }
         };
 
+        const downloadCSV = (rows, filename='export.csv') => {
+            try{
+                const csv = rows.map(r => r.map(v => {
+                    const s = (v === null || v === undefined) ? '' : String(v);
+                    const escaped = s.replace(/"/g, '""');
+                    return (escaped.includes(',') || escaped.includes('\n') || escaped.includes('"')) ? `"${escaped}"` : escaped;
+                }).join(',')).join('\n');
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            }catch(e){
+                console.error(e);
+                showToast('Unable to export CSV', 'error');
+            }
+        };
+
+
         const buildSmsLink = (phone, message) => {
             const p = String(phone || '').trim();
             if(!p) return null;
@@ -1415,7 +1438,8 @@ const SetupChecklistCard = ({ user, appointments, setView, onOpenSettings }) => 
                 <div className="min-h-screen landing-bg text-white font-inter flex flex-col relative overflow-x-hidden">
                     {infoContent && <InfoModal title={infoContent.title} content={infoContent.content} onClose={() => setInfoContent(null)} />}
                     <div className="w-full p-6 flex justify-between items-center z-20 container mx-auto">
-                        <div className="flex items-center gap-2">
+                        </div>
+                                        <div className="flex items-center gap-2">
                             <i className="fas fa-file-signature text-xl text-teal-400"></i>
                             <h1 className="text-xl font-bold tracking-tight font-sans">NotaryOS</h1>
                         </div>
@@ -3242,6 +3266,26 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                         </button>
                     </div>
 
+                    
+                    {selectedEntryIds.length > 0 && (
+                        <div className="card card-tight" style={{marginTop:12}}>
+                            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, flexWrap:'wrap'}}>
+                                <div className="theme-text" style={{fontWeight:900}}>
+                                    {selectedEntryIds.length} selected <span className="theme-text-muted" style={{fontWeight:700}}>(bulk)</span>
+                                </div>
+                                <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+                                    <button className="btn btn-secondary" style={{height:36}} onClick={exportSelectedEntriesCSV}>
+                                        <i className="fas fa-file-csv mr-2"></i>Export CSV
+                                    </button>
+                                    <button className="btn btn-secondary" style={{height:36}} onClick={deleteSelectedEntries}>
+                                        <i className="fas fa-trash mr-2"></i>Delete
+                                    </button>
+                                    <button className="btn btn-secondary" style={{height:36}} onClick={clearEntrySelection}>Clear</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="theme-surface theme-border border rounded-2xl overflow-hidden">
                         <div className="px-5 py-4 border-b theme-border flex items-center justify-between">
                             <h4 className="font-semibold theme-text">Active Portals</h4>
@@ -3294,6 +3338,7 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
             const [showForm, setShowForm] = useState(false);
             const [search, setSearch] = useState('');
             const [editingEntry, setEditingEntry] = useState(null);
+            const [selectedEntryIds, setSelectedEntryIds] = useState([]);
 
             useEffect(() => { DataManager.get('notary_journal').then(setEntries); }, []);
 
@@ -3343,7 +3388,46 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
             };
 
 
-            const filtered = entries.filter(e => (e.signer || '').toLowerCase().includes(search.toLowerCase()));
+            const q = (search || '').trim().toLowerCase();
+            const filtered = entries.filter(e => {
+                if(!q) return true;
+                const hay = [e.signer, e.date, e.time, e.type, e.fee, e.notes].filter(Boolean).join(' ').toLowerCase();
+                return hay.includes(q);
+            });
+
+            const toggleEntrySelected = (id) => {
+                setSelectedEntryIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : prev.concat(id));
+            };
+            const allFilteredSelected = filtered.length > 0 && selectedEntryIds.length === filtered.length;
+            const selectAllFiltered = () => setSelectedEntryIds(filtered.map(e => e.id));
+            const clearEntrySelection = () => setSelectedEntryIds([]);
+
+            const deleteSelectedEntries = async () => {
+                if(selectedEntryIds.length === 0) return;
+                const ok = confirm(`Delete ${selectedEntryIds.length} selected journal entr${selectedEntryIds.length===1?'y':'ies'}?`);
+                if(!ok) return;
+                for(const id of selectedEntryIds){
+                    try{ await DataManager.delete('notary_journal', id); }catch(e){}
+                }
+                const next = await DataManager.get('notary_journal');
+                setEntries(next);
+                setSelectedEntryIds([]);
+                showToast('Selected journal entries deleted', 'success');
+                try{ track('journal_bulk_delete', { count: selectedEntryIds.length }); }catch(e){}
+            };
+
+            const exportSelectedEntriesCSV = () => {
+                if(selectedEntryIds.length === 0) return;
+                const selected = entries.filter(e => selectedEntryIds.includes(e.id));
+                const rows = [['Date','Time','Signer','Type','Fee','Notes']].concat(
+                    selected.map(e => [e.date||'', e.time||'', e.signer||'', e.type||'', e.fee||'', e.notes||''])
+                );
+                downloadCSV(rows, `notaryos_journal_selected_${new Date().toISOString().split('T')[0]}.csv`);
+                showToast('Exported selected journal entries', 'success');
+                try{ localStorage.setItem('notary_exported_once','true'); }catch(e){}
+                try{ persistSetupChecklistLocal(user, (safeParse(localStorage.getItem('notary_appointments'), []) || [])); }catch(e){}
+                try{ track('journal_bulk_export', { count: selectedEntryIds.length }); }catch(e){}
+            };
 
             return (
                 <div className="p-4 sm:p-6 pb-24 space-y-5 font-sans max-w-6xl mx-auto w-full">
@@ -3373,7 +3457,8 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                                 </div>
                                 {filtered.map(entry => (
                                     <div key={entry.id} className="grid grid-cols-12 px-4 py-3 border-b theme-border hover:theme-surface-muted transition-all duration-200">
-                                        <div className="col-span-2 font-mono text-sm theme-text">{entry.date}<div className="text-xs theme-text-muted">{entry.time || '—'}</div></div>
+                                        <div className="col-span-1 flex items-center"><input type="checkbox" checked={selectedEntryIds.includes(entry.id)} onChange={()=>toggleEntrySelected(entry.id)} /></div>
+                                        <div className="col-span-1 font-mono text-sm theme-text">{entry.date}<div className="text-xs theme-text-muted">{entry.time || '—'}</div></div>
                                         <div className="col-span-3 font-semibold theme-text truncate">{entry.signer}</div>
                                         <div className="col-span-3 theme-text-muted truncate">{entry.docType || 'Notary Service'}</div>
                                         <div className="col-span-2 theme-text-muted truncate">{entry.idType || "Driver's License"}</div>
@@ -3450,6 +3535,7 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
             const [expenses, setExpenses] = useState([]);
             const [mileage, setMileage] = useState([]);
             const [showExpenseModal, setShowExpenseModal] = useState(false);
+            const [selectedExpenseIds, setSelectedExpenseIds] = useState([]);
             const [showMileageModal, setShowMileageModal] = useState(false);
             const [editingExpense, setEditingExpense] = useState(null);
             const [editingMileage, setEditingMileage] = useState(null);
@@ -3509,6 +3595,43 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
 
             const totalExpenses = expenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
             const totalMileage = mileage.reduce((sum, m) => sum + parseFloat(m.miles || 0), 0);
+
+
+            const toggleExpenseSelected = (id) => {
+                setSelectedExpenseIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : prev.concat(id));
+            };
+            const allExpensesSelected = expenses.length > 0 && selectedExpenseIds.length === expenses.length;
+            const selectAllExpenses = () => setSelectedExpenseIds(expenses.map(e => e.id));
+            const clearExpenseSelection = () => setSelectedExpenseIds([]);
+
+            const deleteSelectedExpenses = async () => {
+                if(selectedExpenseIds.length === 0) return;
+                const ok = confirm(`Delete ${selectedExpenseIds.length} selected expense${selectedExpenseIds.length===1?'':'s'}?`);
+                if(!ok) return;
+                for(const id of selectedExpenseIds){
+                    try{ await DataManager.delete('notary_expenses', id); }catch(e){}
+                }
+                const next = await DataManager.get('notary_expenses');
+                setExpenses(next);
+                setSelectedExpenseIds([]);
+                showToast('Selected expenses deleted', 'success');
+                try{ track('expenses_bulk_delete', { count: selectedExpenseIds.length }); }catch(e){}
+            };
+
+            const exportSelectedExpensesCSV = () => {
+                if(selectedExpenseIds.length === 0) return;
+                const selected = expenses.filter(e => selectedExpenseIds.includes(e.id));
+                const rows = [['Date','Category','Description','Amount']].concat(
+                    selected.map(e => [e.date||'', e.category||'', e.desc||'', e.amount||''])
+                );
+                // reuse existing helper in this component
+                exportCSV(rows, `notaryos_expenses_selected_${new Date().toISOString().split('T')[0]}.csv`);
+                try{ localStorage.setItem('notary_exported_once','true'); }catch(e){}
+                showToast('Exported selected expenses', 'success');
+                try{ persistSetupChecklistLocal(user, safeParse(localStorage.getItem('notary_appointments'), []) || []); }catch(e){}
+                try{ track('expenses_bulk_export', { count: selectedExpenseIds.length }); }catch(e){}
+            };
+
 
             const categoryIcon = (category = '') => {
                 const c = category.toLowerCase();
@@ -3676,9 +3799,33 @@ return (
                         expenses.length === 0 ? (
                             <EmptyState icon="fa-receipt" title="No expenses logged yet" description="Track your write-offs here." actionLabel="Add Expense" onAction={() => setShowExpenseModal(true)} colorClass="theme-text" bgClass="theme-surface-muted" />
                         ) : (
+                            
+                            {expenses.length > 0 && (
+                                <div className="card card-tight" style={{marginBottom:12}}>
+                                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, flexWrap:'wrap'}}>
+                                        <div className="theme-text" style={{fontWeight:900}}>
+                                            Bulk actions <span className="theme-text-muted" style={{fontWeight:700}}>{selectedExpenseIds.length} selected</span>
+                                        </div>
+                                        <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+                                            <button className="btn btn-secondary" style={{height:36}} onClick={() => { allExpensesSelected ? clearExpenseSelection() : selectAllExpenses(); }}>
+                                                {allExpensesSelected ? 'Clear All' : 'Select All'}
+                                            </button>
+                                            <button className="btn btn-secondary" style={{height:36}} disabled={selectedExpenseIds.length===0} onClick={exportSelectedExpensesCSV}>
+                                                <i className="fas fa-file-csv mr-2"></i>Export Selected
+                                            </button>
+                                            <button className="btn btn-secondary" style={{height:36}} disabled={selectedExpenseIds.length===0} onClick={deleteSelectedExpenses}>
+                                                <i className="fas fa-trash mr-2"></i>Delete Selected
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="theme-surface theme-border border rounded-2xl divide-y theme-border">
                                 {expenses.map(item => (
                                     <div key={item.id} className="p-4 flex items-center justify-between gap-3 hover:theme-surface-muted transition-all duration-200">
+                                        <div className="flex items-center gap-3">
+                                            <input type="checkbox" checked={selectedExpenseIds.includes(item.id)} onChange={()=>toggleExpenseSelected(item.id)} />
                                         <div className="min-w-0">
                                             <p className="text-xs theme-text-muted">{item.date}</p>
                                             <p className="font-semibold theme-text truncate"><i className={`fas ${categoryIcon(item.category)} mr-2`}></i>{item.category || 'General'}</p>
