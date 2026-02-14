@@ -54,7 +54,23 @@
 
         // --- TOAST CONTEXT ---
         window.addToastFn = null;
-        const showToast = (msg, type = 'success') => { if (window.addToastFn) window.addToastFn(msg, type); };
+        
+        const EmptyStateCard = ({ title, description, ctaLabel, onCta, icon='fas fa-circle-plus', hint }) => {
+            return (
+                <div className="empty-state">
+                    <h4 className="theme-text"><i className={icon} style={{marginRight:10, opacity:.9}}></i>{title}</h4>
+                    <p className="theme-text">{description}</p>
+                    <div className="cta-row">
+                        <button className="btn btn-primary" style={{height:40}} onClick={onCta}>
+                            {ctaLabel}
+                        </button>
+                        {hint ? <div className="hint theme-text">{hint}</div> : null}
+                    </div>
+                </div>
+            );
+        };
+
+const showToast = (msg, type = 'success') => { if (window.addToastFn) window.addToastFn(msg, type); };
 
         const ToastContainer = () => {
             const [toasts, setToasts] = useState([]);
