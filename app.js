@@ -3461,162 +3461,315 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
             );
         };
 
-        const Schedule = ({ appointments, setView, onMarkPaid, onEdit, onAdd }) => {
+              const Schedule = ({ appointments, setView, onMarkPaid, onEdit, onAdd }) => {
             const safeAppointments = Array.isArray(appointments) ? appointments : [];
             const [activeFilter, setActiveFilter] = useState('All');
             const [paymentTarget, setPaymentTarget] = useState(null);
+            const [searchQuery, setSearchQuery] = useState('');
 
-            const filters = ['All', 'Upcoming', 'Completed', 'Paid'];
+            const filters = ['All', 'Upcoming', 'Completed', 'Paid', 'Cancelled'];
             const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
 
             const withDate = safeAppointments.map(appt => ({ ...appt, dt: new Date(`${appt.date || ''}T${appt.time || '00:00'}`) }));
+
             const filtered = withDate.filter(appt => {
-                if (activeFilter === 'All') return true;
                 if (activeFilter === 'Paid') return appt.status === 'Paid';
                 if (activeFilter === 'Completed') return appt.status === 'Completed';
+                if (activeFilter === 'Cancelled') return appt.status === 'Cancelled';
                 if (activeFilter === 'Upcoming') return appt.status === 'Scheduled' || (appt.dt >= now && appt.status !== 'Cancelled');
                 return true;
+            }).filter(appt => {
+                if (!searchQuery.trim()) return true;
+                const q = searchQuery.toLowerCase();
+                return [appt.clientName, appt.type, appt.address, appt.date].filter(Boolean).join(' ').toLowerCase().includes(q);
             }).sort((a, b) => a.dt - b.dt);
 
-            // STATUS: Calculate key metrics
-            const upcoming = safeAppointments.filter(a => a.status === 'Scheduled' || (withDate.find(w => w.id === a.id)?.dt >= now && a.status !== 'Cancelled'));
-            const nextAppt = upcoming.sort((a, b) => {
-                const aDate = withDate.find(w => w.id === a.id)?.dt;
-                const bDate = withDate.find(w => w.id === b.id)?.dt;
-                return (aDate || 0) - (bDate || 0);
-            })[0];
+            /* --- STATUS METRICS --- */
+            const upcoming = safeAppointments.filter(a => a.status === 'Scheduled');
+            const completedCount = safeAppointments.filter(a => a.status === 'Completed').length;
+            const paidCount = safeAppointments.filter(a => a.status === 'Paid').length;
+
+            const nextAppt = [...withDate]
+                .filter(a => a.status === 'Scheduled' && a.dt >= now)
+                .sort((a, b) => a.dt - b.dt)[0] || null;
+
             const weekStart = new Date(now);
             weekStart.setDate(now.getDate() - now.getDay());
             const weekEnd = new Date(weekStart);
             weekEnd.setDate(weekStart.getDate() + 7);
             const thisWeekRevenue = safeAppointments.filter(a => {
-                const apptDate = new Date(a.date);
-                return apptDate >= weekStart && apptDate < weekEnd;
+                const d = new Date(a.date);
+                return d >= weekStart && d < weekEnd;
             }).reduce((sum, a) => sum + parseFloat(a.fee || 0), 0);
 
-            const statusPill = (status) => {
-                if (status === 'Paid') return 'bg-emerald-100 text-emerald-700';
-                if (status === 'Completed') return 'bg-blue-100 text-blue-700';
-                if (status === 'Cancelled') return 'bg-red-100 text-red-700';
-                return 'bg-amber-100 text-amber-700';
+            const todaysJobs = safeAppointments.filter(a => a.date === todayStr);
+            const todayRevenue = todaysJobs.reduce((sum, a) => sum + parseFloat(a.fee || 0), 0);
+
+            /* --- HELPERS --- */
+            const statusClass = (status) => {
+                if (status === 'Paid') return 'sched-status-paid';
+                if (status === 'Completed') return 'sched-status-completed';
+                if (status === 'Cancelled') return 'sched-status-cancelled';
+                return 'sched-status-scheduled';
+            };
+
+            const statusDot = (status) => {
+                if (status === 'Paid') return 'sched-dot-green';
+                if (status === 'Completed') return 'sched-dot-blue';
+                if (status === 'Cancelled') return 'sched-dot-red';
+                return 'sched-dot-amber';
+            };
+
+            const typeIcon = (type) => {
+                const t = (type || '').toLowerCase();
+                if (t.includes('loan')) return 'fa-home';
+                if (t.includes('real estate')) return 'fa-building';
+                if (t.includes('power of attorney') || t.includes('poa')) return 'fa-gavel';
+                if (t.includes('affidavit')) return 'fa-file-alt';
+                if (t.includes('trust')) return 'fa-shield-alt';
+                if (t.includes('medical')) return 'fa-heartbeat';
+                return 'fa-file-signature';
+            };
+
+            const typeGradient = (type) => {
+                const t = (type || '').toLowerCase();
+                if (t.includes('loan')) return 'from-blue-500 to-indigo-500';
+                if (t.includes('real estate')) return 'from-emerald-500 to-teal-500';
+                if (t.includes('power of attorney') || t.includes('poa')) return 'from-purple-500 to-violet-500';
+                if (t.includes('trust')) return 'from-amber-500 to-orange-500';
+                return 'from-slate-500 to-slate-600';
             };
 
             return (
-                <div className="p-4 sm:p-6 pb-24 space-y-5 font-sans max-w-6xl mx-auto w-full">
-                    {/* STATUS SECTION */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+                <div className="p-4 sm:p-6 pb-24 space-y-6 font-sans max-w-6xl mx-auto w-full sched-bg-mesh">
+
+                    {/* === HEADER === */}
+                    <div className="anim-fade-up anim-delay-1 flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center">
-                                <i className="fas fa-calendar-alt text-white"></i>
+                            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                                <i className="fas fa-calendar-alt text-white text-lg"></i>
                             </div>
-                            <h3 className="text-2xl font-bold theme-text">Schedule</h3>
+                            <div>
+                                <h3 className="text-2xl sm:text-3xl font-extrabold theme-text tracking-tight">Schedule</h3>
+                                <p className="text-xs theme-text-muted mt-0.5">Manage appointments and track your signing pipeline</p>
+                            </div>
                         </div>
-                        <button onClick={() => (onAdd ? onAdd(new Date().toISOString().split('T')[0]) : setView('Add Appointment'))} className="theme-accent-btn px-4 py-2.5 rounded-xl font-semibold shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
-                            <i className="fas fa-plus mr-2"></i>New Appointment
+                        <button onClick={() => (onAdd ? onAdd(todayStr) : setView('Add Appointment'))} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-semibold shadow-lg shadow-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/30 hover:-translate-y-0.5 transition-all duration-300">
+                            <i className="fas fa-plus"></i> New Appointment
                         </button>
                     </div>
 
-                    {/* Status Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-                        <div className="status-card theme-surface theme-border border rounded-xl p-4">
+                    {/* === KPI CARDS === */}
+                    <div className="anim-fade-scale anim-delay-2 grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* Today */}
+                        <div className="sched-kpi glass-card p-4 gradient-mesh-emerald">
                             <div className="flex items-center justify-between mb-2">
-                                <p className="text-xs font-semibold uppercase tracking-wide theme-text-muted">Upcoming</p>
-                                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                                    <i className="fas fa-calendar-check text-blue-600 text-sm"></i>
+                                <p className="theme-text-muted text-[10px] font-bold uppercase tracking-widest">Today</p>
+                                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-green-400 flex items-center justify-center shadow-md">
+                                    <i className="fas fa-sun text-white text-sm"></i>
                                 </div>
                             </div>
-                            <p className="text-2xl font-bold text-blue-600">{upcoming.length}</p>
-                            <p className="text-xs theme-text-muted mt-1">{upcoming.length === 1 ? 'appointment' : 'appointments'} scheduled</p>
+                            <p className="text-2xl font-extrabold gradient-text-emerald">{todaysJobs.length}</p>
+                            <p className="text-[11px] theme-text-muted mt-1">{todaysJobs.length === 1 ? 'signing' : 'signings'} &middot; ${todayRevenue.toLocaleString()}</p>
                         </div>
-                        <div className="status-card theme-surface theme-border border rounded-xl p-4">
+
+                        {/* Upcoming */}
+                        <div className="sched-kpi glass-card p-4 gradient-mesh-indigo">
                             <div className="flex items-center justify-between mb-2">
-                                <p className="text-xs font-semibold uppercase tracking-wide theme-text-muted">Next Appointment</p>
-                                <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
-                                    <i className="fas fa-clock text-amber-600 text-sm"></i>
+                                <p className="theme-text-muted text-[10px] font-bold uppercase tracking-widest">Upcoming</p>
+                                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-md">
+                                    <i className="fas fa-calendar-check text-white text-sm"></i>
                                 </div>
                             </div>
-                            {nextAppt ? (
-                                <>
-                                    <p className="text-lg font-bold text-amber-600 truncate">{nextAppt.clientName || 'Client'}</p>
-                                    <p className="text-xs theme-text-muted mt-1">{nextAppt.date} at {nextAppt.time || 'TBD'}</p>
-                                </>
-                            ) : (
-                                <>
-                                    <p className="text-lg font-bold theme-text-muted">None scheduled</p>
-                                    <p className="text-xs theme-text-muted mt-1">Add an appointment</p>
-                                </>
-                            )}
+                            <p className="text-2xl font-extrabold gradient-text-indigo">{upcoming.length}</p>
+                            <p className="text-[11px] theme-text-muted mt-1 truncate">
+                                {nextAppt ? `Next: ${nextAppt.clientName || 'Client'}` : 'None scheduled'}
+                            </p>
                         </div>
-                        <div className="status-card theme-surface theme-border border rounded-xl p-4">
+
+                        {/* Week Revenue */}
+                        <div className="sched-kpi glass-card p-4 gradient-mesh-amber">
                             <div className="flex items-center justify-between mb-2">
-                                <p className="text-xs font-semibold uppercase tracking-wide theme-text-muted">This Week Revenue</p>
-                                <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
-                                    <i className="fas fa-dollar-sign text-emerald-600 text-sm"></i>
+                                <p className="theme-text-muted text-[10px] font-bold uppercase tracking-widest">This Week</p>
+                                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-400 flex items-center justify-center shadow-md">
+                                    <i className="fas fa-coins text-white text-sm"></i>
                                 </div>
                             </div>
-                            <p className="text-2xl font-bold text-emerald-600">${thisWeekRevenue.toLocaleString()}</p>
-                            <p className="text-xs theme-text-muted mt-1">Potential earnings</p>
+                            <p className="text-2xl font-extrabold" style={{color: '#d97706'}}>${thisWeekRevenue.toLocaleString()}</p>
+                            <p className="text-[11px] theme-text-muted mt-1">Potential revenue</p>
+                        </div>
+
+                        {/* Pipeline */}
+                        <div className="sched-kpi glass-card p-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="theme-text-muted text-[10px] font-bold uppercase tracking-widest">Pipeline</p>
+                                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center shadow-md">
+                                    <i className="fas fa-chart-bar text-white text-sm"></i>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 mt-1">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="sched-dot sched-dot-amber"></span>
+                                    <span className="text-xs font-bold theme-text">{upcoming.length}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="sched-dot sched-dot-blue"></span>
+                                    <span className="text-xs font-bold theme-text">{completedCount}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="sched-dot sched-dot-green"></span>
+                                    <span className="text-xs font-bold theme-text">{paidCount}</span>
+                                </div>
+                            </div>
+                            <p className="text-[11px] theme-text-muted mt-1.5">Scheduled &middot; Done &middot; Paid</p>
                         </div>
                     </div>
 
-                    {/* CONTEXT SECTION */}
-                    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                        {filters.map(filter => (
-                            <button
-                                key={filter}
-                                onClick={() => setActiveFilter(filter)}
-                                className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-sm font-semibold border transition-all duration-200 ${activeFilter === filter ? 'theme-pill' : 'theme-border theme-text-muted hover:theme-text'}`}
-                            >
-                                {filter}
-                            </button>
-                        ))}
+                    {/* === FILTERS + SEARCH === */}
+                    <div className="anim-fade-up anim-delay-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                            {filters.map(filter => (
+                                <button
+                                    key={filter}
+                                    onClick={() => setActiveFilter(filter)}
+                                    className={`sched-filter flex-shrink-0 ${activeFilter === filter ? 'sched-filter-active' : 'theme-text-muted theme-border'}`}
+                                >
+                                    {filter}
+                                    {filter !== 'All' && (
+                                        <span className="ml-1 opacity-60 text-[11px]">
+                                            {filter === 'Upcoming' ? upcoming.length : filter === 'Completed' ? completedCount : filter === 'Paid' ? paidCount : safeAppointments.filter(a => a.status === 'Cancelled').length}
+                                        </span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="relative w-full sm:w-64 flex-shrink-0">
+                            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 theme-text-muted text-xs"></i>
+                            <input
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search client, type..."
+                                className="w-full pl-9 pr-3 py-2 rounded-xl border theme-border theme-app-bg theme-text text-sm glass"
+                                style={{background: 'rgba(255,255,255,0.5)', backdropFilter: 'blur(8px)'}}
+                            />
+                        </div>
                     </div>
 
-                    {/* ACTION SECTION */}
+                    {/* === APPOINTMENT LIST === */}
                     {filtered.length === 0 ? (
-                        <div className="theme-surface theme-border border rounded-2xl p-10 text-center">
-                            <div className="w-16 h-16 mx-auto rounded-2xl theme-surface-muted flex items-center justify-center mb-4">
-                                <i className="fas fa-calendar-check theme-text-muted text-2xl"></i>
+                        <div className="anim-fade-scale anim-delay-4 glass-card rounded-2xl p-12 text-center">
+                            <div className="sched-empty-ring mx-auto mb-5">
+                                <i className="fas fa-calendar-plus text-indigo-400 text-2xl"></i>
                             </div>
-                            <h4 className="theme-text text-lg font-semibold mb-2">No appointments in this view</h4>
-                            <p className="theme-text-muted text-sm mb-4 max-w-md mx-auto">Create your first appointment to kick off your schedule pipeline and start tracking your notary business.</p>
-                            <button onClick={() => setView('Add Appointment')} className="theme-accent-btn px-4 py-2 rounded-lg font-semibold">
-                                <i className="fas fa-plus mr-2"></i>Create Appointment
-                            </button>
+                            <h4 className="theme-text text-lg font-extrabold mb-2">
+                                {searchQuery ? 'No matching appointments' : activeFilter !== 'All' ? `No ${activeFilter.toLowerCase()} appointments` : 'No appointments yet'}
+                            </h4>
+                            <p className="theme-text-muted text-sm mb-6 max-w-md mx-auto">
+                                {searchQuery ? 'Try adjusting your search or clearing filters.' : 'Create your first appointment to start building your signing pipeline and tracking revenue.'}
+                            </p>
+                            {!searchQuery && (
+                                <button onClick={() => (onAdd ? onAdd(todayStr) : setView('Add Appointment'))} className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-semibold shadow-lg shadow-indigo-500/20 hover:-translate-y-0.5 transition-all duration-300">
+                                    <i className="fas fa-plus mr-2"></i>Create Appointment
+                                </button>
+                            )}
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {filtered.map(appt => {
+                            {filtered.map((appt, idx) => {
                                 const day = appt.dt && !isNaN(appt.dt) ? appt.dt.toLocaleString(undefined, { day: '2-digit' }) : '--';
                                 const month = appt.dt && !isNaN(appt.dt) ? appt.dt.toLocaleString(undefined, { month: 'short' }).toUpperCase() : '---';
+                                const weekday = appt.dt && !isNaN(appt.dt) ? appt.dt.toLocaleString(undefined, { weekday: 'short' }) : '';
+                                const isToday = appt.date === todayStr;
+                                const isPast = appt.dt < now && !isToday;
+                                const isPaid = appt.status === 'Paid';
+                                const initials = (appt.clientName || 'NA').split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
+
                                 return (
-                                    <div key={appt.id} className="theme-surface theme-border border rounded-2xl p-4 hover:border-indigo-400 transition-all duration-200 hover:-translate-y-0.5 shadow-sm hover:shadow-md overflow-hidden">
+                                    <div
+                                        key={appt.id}
+                                        className={`anim-fade-up glass-card appt-row p-4 sm:p-5 ${isToday ? 'appt-row-today' : ''}`}
+                                        style={{ animationDelay: `${0.05 * Math.min(idx, 10)}s` }}
+                                    >
                                         <div className="flex items-center gap-4">
-                                            <div className="w-16 h-16 rounded-xl theme-surface-muted border theme-border flex flex-col items-center justify-center flex-shrink-0">
-                                                <span className="text-[11px] font-bold theme-text-muted">{month}</span>
-                                                <span className="text-xl font-bold theme-text leading-none">{day}</span>
+                                            {/* Date Badge */}
+                                            <div className="appt-date-badge theme-surface-muted border theme-border">
+                                                <span className="text-[10px] font-bold theme-text-muted relative z-10">{month}</span>
+                                                <span className="text-xl font-extrabold theme-text leading-none relative z-10">{day}</span>
+                                                <span className="text-[9px] font-semibold theme-text-muted relative z-10">{weekday}</span>
                                             </div>
 
+                                            {/* Main Info */}
                                             <div className="min-w-0 flex-1">
-                                                <p className="font-bold theme-text truncate">{appt.clientName || 'Client'}</p>
-                                                <p className="text-sm theme-text-muted truncate">{appt.type || 'Notary Service'} • {appt.time || 'TBD'}</p>
-                                                <p className="text-xs theme-text-muted truncate mt-1"><i className="fas fa-map-marker-alt mr-1"></i>{appt.address || 'Address not provided'}</p>
+                                                <div className="flex items-center gap-2 mb-0.5">
+                                                    {isToday && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-indigo-100 text-indigo-700 border border-indigo-200">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>TODAY
+                                                        </span>
+                                                    )}
+                                                    <span className={`sched-dot ${statusDot(appt.status)}`}></span>
+                                                </div>
+                                                <p className="font-extrabold theme-text truncate text-[15px] tracking-tight">{appt.clientName || 'Client'}</p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className={`w-6 h-6 rounded-md bg-gradient-to-br ${typeGradient(appt.type)} flex items-center justify-center flex-shrink-0`}>
+                                                        <i className={`fas ${typeIcon(appt.type)} text-white text-[9px]`}></i>
+                                                    </span>
+                                                    <span className="text-sm theme-text-muted truncate">{appt.type || 'Notary Service'}</span>
+                                                    <span className="text-sm theme-text-muted">•</span>
+                                                    <span className="text-sm theme-text-muted font-mono">{appt.time || 'TBD'}</span>
+                                                </div>
+                                                <p className="text-xs theme-text-muted truncate mt-1">
+                                                    <i className="fas fa-map-marker-alt mr-1 text-rose-400"></i>
+                                                    {appt.address || 'Address not provided'}
+                                                </p>
                                             </div>
 
-                                            <div className="text-right flex-shrink-0">
-                                                <p className="text-lg font-bold theme-text">${parseFloat(appt.fee || 0).toFixed(0)}</p>
-                                                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${statusPill(appt.status)}`}>{appt.status || 'Scheduled'}</span>
-                                                <div className="mt-2 flex justify-end gap-2">
-                                                    {appt.status !== 'Paid' && (
-                                                        <button onClick={() => setPaymentTarget(appt)} className="w-7 h-7 rounded-lg border theme-border theme-text-muted hover:theme-text"><i className="fas fa-dollar-sign text-[11px]"></i></button>
+                                            {/* Right: Fee + Status + Actions */}
+                                            <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
+                                                <p className={`appt-fee ${isPaid ? 'appt-fee-paid' : 'appt-fee-default'}`}>
+                                                    ${parseFloat(appt.fee || 0).toLocaleString()}
+                                                </p>
+                                                <span className={`sched-status ${statusClass(appt.status)}`}>
+                                                    <i className={`fas ${appt.status === 'Paid' ? 'fa-check-circle' : appt.status === 'Completed' ? 'fa-circle-check' : appt.status === 'Cancelled' ? 'fa-ban' : 'fa-clock'} text-[9px]`}></i>
+                                                    {appt.status || 'Scheduled'}
+                                                </span>
+                                                <div className="flex gap-1.5 mt-0.5">
+                                                    {appt.status !== 'Paid' && appt.status !== 'Cancelled' && (
+                                                        <button onClick={(e) => { e.stopPropagation(); setPaymentTarget(appt); }} className="appt-action-btn appt-action-btn-pay" title="Collect Payment">
+                                                            <i className="fas fa-dollar-sign"></i>
+                                                        </button>
                                                     )}
-                                                    <button onClick={() => onEdit(appt)} className="w-7 h-7 rounded-lg border theme-border theme-text-muted hover:theme-text"><i className="fas fa-ellipsis-h text-[11px]"></i></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); onEdit(appt); }} className="appt-action-btn" title="Edit / Details">
+                                                        <i className="fas fa-pen"></i>
+                                                    </button>
+                                                    {appt.phone && (
+                                                        <a href={`tel:${appt.phone}`} className="appt-action-btn" title="Call Client">
+                                                            <i className="fas fa-phone"></i>
+                                                        </a>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 );
                             })}
+                        </div>
+                    )}
+
+                    {/* === SUMMARY FOOTER === */}
+                    {filtered.length > 0 && (
+                        <div className="anim-fade-up anim-delay-5 glass-card rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-4">
+                                <span className="text-xs font-bold theme-text-muted uppercase tracking-wide">Showing {filtered.length} of {safeAppointments.length}</span>
+                                {activeFilter !== 'All' && (
+                                    <button onClick={() => setActiveFilter('All')} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors">
+                                        Clear filter <i className="fas fa-times ml-1"></i>
+                                    </button>
+                                )}
+                            </div>
+                            <div className="text-xs font-bold theme-text-muted">
+                                Total: <span className="theme-text font-extrabold">${filtered.reduce((s, a) => s + parseFloat(a.fee || 0), 0).toLocaleString()}</span>
+                            </div>
                         </div>
                     )}
 
