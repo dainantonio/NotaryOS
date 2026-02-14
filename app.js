@@ -2147,15 +2147,24 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
             };
 
             const handleGoogleAuth = async () => {
-                setIsLoading(true);
-                try { 
-                    const provider = new firebase.auth.GoogleAuthProvider(); 
-                    await firebase.auth().signInWithPopup(provider); 
-                } catch (err) { 
-                    setError(err.message); 
-                    setIsLoading(false);
-                } 
-            };
+  setIsLoading(true);
+  try {
+    // Firebase not configured guard
+    if (!window.firebase || !firebase.apps || firebase.apps.length === 0) {
+      setError(
+        "Google sign-in is not configured yet. Add your Firebase config in firebase-init.js and redeploy."
+      );
+      setIsLoading(false);
+      return;
+    }
+
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await firebase.auth().signInWithPopup(provider);
+  } catch (err) {
+    setError(err?.message || String(err));
+    setIsLoading(false);
+  }
+};
 
             return (
                 <div className="min-h-screen flex bg-white font-sans">
