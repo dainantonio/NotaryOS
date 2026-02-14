@@ -3830,8 +3830,7 @@ return (
                         expenses.length === 0 ? (
                             <EmptyState icon="fa-receipt" title="No expenses logged yet" description="Track your write-offs here." actionLabel="Add Expense" onAction={() => setShowExpenseModal(true)} colorClass="theme-text" bgClass="theme-surface-muted" />
                         ) : (
-                            
-                            {expenses.length > 0 && (
+                            <>
                                 <div className="card card-tight" style={{marginBottom:12}}>
                                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, flexWrap:'wrap'}}>
                                         <div className="theme-text" style={{fontWeight:900}}>
@@ -3850,9 +3849,8 @@ return (
                                         </div>
                                     </div>
                                 </div>
-                            )}
 
-                            <div className="theme-surface theme-border border rounded-2xl divide-y theme-border">
+                                <div className="theme-surface theme-border border rounded-2xl divide-y theme-border">
                                 {expenses.map(item => (
                                     <div key={item.id} className="p-4 flex items-center justify-between gap-3 hover:theme-surface-muted transition-all duration-200">
                                         <div className="flex items-center gap-3">
@@ -3862,6 +3860,7 @@ return (
                                             <p className="font-semibold theme-text truncate"><i className={`fas ${categoryIcon(item.category)} mr-2`}></i>{item.category || 'General'}</p>
                                             <p className="text-sm theme-text-muted truncate">{item.desc || 'No description'}</p>
                                         </div>
+                                    </div>
                                         <div className="flex items-center gap-2 flex-shrink-0">
                                             <p className="font-bold" style={{ color: '#dc2626' }}>-${parseFloat(item.amount || 0).toFixed(2)}</p>
                                             <button onClick={() => startEditExpense(item)} className="theme-icon-btn" title="Edit"><i className="fas fa-pen"></i></button>
@@ -3870,6 +3869,7 @@ return (
                                     </div>
                                 ))}
                             </div>
+                            </>
                         )
                     ) : (
                         mileage.length === 0 ? (
