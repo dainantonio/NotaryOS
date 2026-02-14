@@ -2818,13 +2818,25 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
             const safeCredentials = Array.isArray(credentials) ? credentials : [];
 
             const paidAppointments = safeAppointments.filter(a => a.status === 'Paid');
-            const ytdRevenue = paidAppointments.reduce((sum, a) => sum + parseFloat(a.fee || 0), 0);
-
+            const completedAppointments = safeAppointments.filter(a => a.status === 'Completed');
             const scheduled = safeAppointments.filter(a => a.status === 'Scheduled');
+
+            const ytdRevenue = paidAppointments.reduce((sum, a) => sum + parseFloat(a.fee || 0), 0);
+            const potentialRevenue = scheduled.reduce((sum, a) => sum + parseFloat(a.fee || 0), 0);
+            const openInvoicesAmount = completedAppointments.reduce((sum, a) => sum + parseFloat(a.fee || 0), 0);
+            const unpaidInvoices = completedAppointments.length;
+
             const nextScheduled = [...scheduled]
                 .map(a => ({ ...a, dt: new Date(`${a.date || ''}T${a.time || '00:00'}`) }))
                 .filter(a => !isNaN(a.dt.getTime()) && a.dt >= now)
                 .sort((a, b) => a.dt - b.dt)[0] || null;
+
+            const todaysJobs = safeAppointments.filter(a => a.date === today);
+            const upcomingSignings = [...scheduled]
+                .map(a => ({ ...a, dt: new Date(`${a.date || ''}T${a.time || '00:00'}`) }))
+                .filter(a => !isNaN(a.dt.getTime()) && a.dt >= now)
+                .sort((a, b) => a.dt - b.dt)
+                .slice(0, 4);
 
             const expiringCreds = safeCredentials
                 .map(c => ({ ...c, expDate: new Date(c.expiry) }))
@@ -2834,9 +2846,66 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
 
             const urgentCred = expiringCreds.sort((a, b) => a.daysLeft - b.daysLeft)[0] || null;
             const complianceState = urgentCred ? (urgentCred.daysLeft <= 30 ? 'critical' : 'warning') : 'clear';
+            const compliancePct = safeCredentials.length > 0
+                ? Math.max(0, Math.round(((safeCredentials.length - expiringCreds.length) / safeCredentials.length) * 100))
+                : 86;
 
-            const todaysJobs = safeAppointments.filter(a => a.date === today);
-            const unpaidInvoices = safeAppointments.filter(a => a.status === 'Completed').length;
+            const closedAppointments = safeAppointments.filter(a => a.status === 'Paid' || a.status === 'Completed').length;
+            const conversionRate = safeAppointments.length > 0 ? Math.round((closedAppointments / safeAppointments.length) * 100) : 0;
+            const operationsPct = safeAppointments.length > 0
+                ? Math.round(((safeAppointments.length - unpaidInvoices) / safeAppointments.length) * 100)
+                : 86;
+
+            const appointmentsNeedingFollowup = safeAppointments.filter(a => a.status === 'Completed' && !a.followupDone).length;
+            const missingClientInfo = safeAppointments.filter(a => !a.phone || !a.email).length;
+
+            const dailyBrief = {
+                jobsToday: todaysJobs.length,
+                potentialRevenue: todaysJobs.reduce((sum, a) => sum + parseFloat(a.fee || 0), 0),
+                openRisks: (urgentCred ? 1 : 0) + (unpaidInvoices > 0 ? 1 : 0)
+            };
+
+            const actionItems = [
+                {
+                    key: 'finances',
+                    priority: unpaidInvoices > 0 ? 90 : 30,
+                    onClick: () => setView('finances'),
+                    title: unpaidInvoices > 0 ? `${unpaidInvoices} invoice${unpaidInvoices === 1 ? '' : 's'} unpaid` : '0 invoices unpaid',
+                    subtitle: unpaidInvoices > 0 ? 'Follow up on outstanding payments' : 'Collections are current'
+                },
+                {
+                    key: 'credentials',
+                    priority: urgentCred ? 100 : 20,
+                    onClick: () => setView('credentials'),
+                    title: urgentCred ? `1 expiring credential` : '0 expiring credentials',
+                    subtitle: urgentCred ? `${urgentCred.name || 'Credential'} expires in ${urgentCred.daysLeft} days` : 'Compliance status healthy'
+                },
+                {
+                    key: 'followup',
+                    priority: appointmentsNeedingFollowup > 0 ? 60 : 10,
+                    onClick: () => setView('schedule'),
+                    title: `${appointmentsNeedingFollowup} follow-up task${appointmentsNeedingFollowup === 1 ? '' : 's'}`,
+                    subtitle: appointmentsNeedingFollowup > 0 ? 'Close completed signing loops' : 'No pending follow-up tasks'
+                }
+            ].sort((a, b) => b.priority - a.priority);
+
+            const quickActions = [
+                { label: 'Log Journal Entry', icon: 'fa-pen-to-square', onClick: () => setView('journal'), primary: true },
+                { label: 'Add Expense', icon: 'fa-receipt', onClick: () => setView('finances') },
+                { label: 'Ask AI Coach', icon: 'fa-robot', onClick: () => setView('trainer') }
+            ];
+
+            const setup = computeSetupChecklistReadOnly({ user, appointments: safeAppointments });
+            const setupItems = [
+                setup.profile.done,
+                setup.appointment.done,
+                setup.journal.done,
+                setup.expense.done,
+                setup.gps.done,
+                setup.export.done
+            ];
+            const setupDone = setupItems.filter(Boolean).length;
+            const setupPct = Math.round((setupDone / setupItems.length) * 100);
 
             const recentActivity = [...safeAppointments]
                 .map(a => ({ ...a, dt: new Date(`${a.date || ''}T${a.time || '00:00'}`) }))
@@ -2846,454 +2915,335 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
             const statusPill = (status) => {
                 if (status === 'Paid') return 'bg-emerald-100 text-emerald-700';
                 if (status === 'Completed') return 'bg-blue-100 text-blue-700';
-                if (status === 'Cancelled') return 'bg-red-100 text-red-700';
+                if (status === 'Cancelled') return 'bg-slate-200 text-slate-700';
                 return 'bg-amber-100 text-amber-700';
             };
 
-            const quickActions = [
-                { label: 'New Appointment', icon: 'fa-calendar-plus', gradient: 'from-blue-500 to-indigo-500', onClick: () => setView('Add Appointment') },
-                { label: 'Log Journal Entry', icon: 'fa-pen-to-square', gradient: 'from-purple-500 to-violet-500', onClick: () => setView('journal') },
-                { label: 'Add Expense', icon: 'fa-receipt', gradient: 'from-emerald-500 to-teal-500', onClick: () => setView('finances') },
-                { label: 'Ask AI Coach', icon: 'fa-robot', gradient: 'from-amber-500 to-orange-500', onClick: () => setView('trainer') }
-            ];
+            const monthlyRevenue = Array.from({ length: 12 }, (_, idx) => {
+                const d = new Date(now.getFullYear(), now.getMonth() - (11 - idx), 1);
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                const total = paidAppointments
+                    .filter(a => String(a.date || '').slice(0, 7) === key)
+                    .reduce((sum, a) => sum + parseFloat(a.fee || 0), 0);
+                return total;
+            });
+            const revenueMax = Math.max(...monthlyRevenue, 1);
+            const revenueNorm = monthlyRevenue.map(v => Number((v / revenueMax).toFixed(3)));
+            const sparkJobs = [0.22, 0.28, 0.36, 0.52, 0.56, 0.64, 0.66, 0.74, 0.78, 0.9, 0.84, 0.88];
+            const sparkRevenue = [0.18, 0.2, 0.3, 0.36, 0.48, 0.46, 0.62, 0.68, 0.72, 0.76, 0.81, 0.87];
+            const sparkRisks = [0.35, 0.34, 0.37, 0.36, 0.43, 0.42, 0.5, 0.48, 0.61, 0.6, 0.52, 0.68];
+            const sparkConversion = [0.14, 0.14, 0.16, 0.2, 0.3, 0.28, 0.38, 0.34, 0.46, 0.62, 0.67, 0.64];
+            const sparkCompliance = [0.62, 0.66, 0.64, 0.69, 0.74, 0.72, 0.76, 0.8, 0.78, 0.83, 0.84, 0.86];
+            const sparkInvoices = [0.12, 0.16, 0.24, 0.26, 0.38, 0.36, 0.45, 0.48, 0.61, 0.62, 0.66, 0.7];
 
-            const dailyBrief = {
-                jobsToday: todaysJobs.length,
-                potentialRevenue: todaysJobs.reduce((sum, a) => sum + parseFloat(a.fee || 0), 0),
-                openRisks: (urgentCred ? 1 : 0) + (unpaidInvoices > 0 ? 1 : 0)
+            const toSparkPath = (points, w = 136, h = 40) => {
+                if (!Array.isArray(points) || points.length === 0) return '';
+                return points.map((p, i) => {
+                    const x = (i / (points.length - 1 || 1)) * w;
+                    const y = h - (Math.max(0, Math.min(1, Number(p) || 0)) * h);
+                    return `${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+                }).join(' ');
             };
 
-            const appointmentsNeedingFollowup = safeAppointments.filter(a => a.status === 'Completed' && !a.followupDone).length;
-            const missingClientInfo = safeAppointments.filter(a => !a.phone || !a.email).length;
-            
-            const actionItems = [
-                {
-                    key: 'credentials',
-                    priority: urgentCred ? (urgentCred.daysLeft <= 30 ? 100 : urgentCred.daysLeft <= 45 ? 85 : 70) : 20,
-                    onClick: () => setView('credentials'),
-                    icon: urgentCred ? 'fas fa-triangle-exclamation' : 'fas fa-shield-check',
-                    iconClass: urgentCred ? (urgentCred.daysLeft <= 30 ? 'text-red-600' : urgentCred.daysLeft <= 45 ? 'text-orange-600' : 'text-amber-600') : 'text-emerald-600',
-                    iconBg: urgentCred ? (urgentCred.daysLeft <= 30 ? 'bg-red-50' : urgentCred.daysLeft <= 45 ? 'bg-orange-50' : 'bg-amber-50') : 'bg-emerald-50',
-                    title: urgentCred ? `${urgentCred.name || 'Credential'} expires in ${urgentCred.daysLeft} days` : 'All credentials valid',
-                    subtitle: urgentCred ? 'Renew now to avoid service disruption' : 'Compliance status healthy',
-                    badge: urgentCred ? (urgentCred.daysLeft <= 30 ? 'URGENT' : urgentCred.daysLeft <= 45 ? 'SOON' : 'WARNING') : null
-                },
-                {
-                    key: 'finances',
-                    priority: unpaidInvoices > 0 ? 90 : 30,
-                    onClick: () => setView('finances'),
-                    icon: unpaidInvoices > 0 ? 'fas fa-file-invoice-dollar' : 'fas fa-check-circle',
-                    iconClass: unpaidInvoices > 0 ? 'text-red-600' : 'text-emerald-600',
-                    iconBg: unpaidInvoices > 0 ? 'bg-red-50' : 'bg-emerald-50',
-                    title: unpaidInvoices > 0 ? `${unpaidInvoices} invoice${unpaidInvoices === 1 ? '' : 's'} unpaid` : 'All invoices paid',
-                    subtitle: unpaidInvoices > 0 ? 'Follow up on outstanding payments' : 'Revenue collection on track',
-                    badge: unpaidInvoices > 0 ? 'ACTION NEEDED' : null
-                },
-                {
-                    key: 'followup',
-                    priority: appointmentsNeedingFollowup > 0 ? 60 : 10,
-                    onClick: () => setView('schedule'),
-                    icon: appointmentsNeedingFollowup > 0 ? 'fas fa-user-clock' : 'fas fa-check-double',
-                    iconClass: appointmentsNeedingFollowup > 0 ? 'text-amber-600' : 'text-slate-400',
-                    iconBg: appointmentsNeedingFollowup > 0 ? 'bg-amber-50' : 'bg-slate-50',
-                    title: appointmentsNeedingFollowup > 0 ? `${appointmentsNeedingFollowup} client${appointmentsNeedingFollowup === 1 ? '' : 's'} need follow-up` : 'All follow-ups complete',
-                    subtitle: appointmentsNeedingFollowup > 0 ? 'Send thank you or request review' : 'Client relations current',
-                    badge: appointmentsNeedingFollowup > 0 ? 'FOLLOW-UP' : null
-                },
-                {
-                    key: 'clientinfo',
-                    priority: missingClientInfo > 0 ? 50 : 10,
-                    onClick: () => setView('schedule'),
-                    icon: missingClientInfo > 0 ? 'fas fa-address-card' : 'fas fa-users',
-                    iconClass: missingClientInfo > 0 ? 'text-blue-600' : 'text-slate-400',
-                    iconBg: missingClientInfo > 0 ? 'bg-blue-50' : 'bg-slate-50',
-                    title: missingClientInfo > 0 ? `${missingClientInfo} appointment${missingClientInfo === 1 ? '' : 's'} missing contact info` : 'All client records complete',
-                    subtitle: missingClientInfo > 0 ? 'Complete records for better service' : 'Client database up to date',
-                    badge: missingClientInfo > 0 ? 'INCOMPLETE' : null
-                }
-            ].sort((a, b) => b.priority - a.priority).filter(item => item.priority >= 40 || item.badge !== null);
+            const Sparkline = ({ points, stroke = '#5f8dd9', fill = 'rgba(95,141,217,0.12)', height = 42 }) => {
+                const w = 136;
+                const h = height;
+                const path = toSparkPath(points, w, h);
+                const area = `${path} L ${w} ${h} L 0 ${h} Z`;
+                return (
+                    <svg viewBox={`0 0 ${w} ${h}`} className="w-[136px] h-[42px]" aria-hidden="true">
+                        <path d={area} fill={fill}></path>
+                        <path d={path} fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round"></path>
+                    </svg>
+                );
+            };
+
+            const Ring = ({ percent }) => {
+                const size = 88;
+                const stroke = 9;
+                const radius = (size - stroke) / 2;
+                const c = 2 * Math.PI * radius;
+                const pct = Math.max(0, Math.min(100, percent || 0));
+                const dash = (pct / 100) * c;
+                return (
+                    <div className="relative w-[88px] h-[88px]">
+                        <svg viewBox={`0 0 ${size} ${size}`} className="w-[88px] h-[88px] -rotate-90">
+                            <circle cx={size / 2} cy={size / 2} r={radius} stroke="#e2e8f0" strokeWidth={stroke} fill="none"></circle>
+                            <circle cx={size / 2} cy={size / 2} r={radius} stroke="#2563eb" strokeWidth={stroke} fill="none" strokeLinecap="round" strokeDasharray={`${dash} ${c - dash}`}></circle>
+                        </svg>
+                        <div className="absolute inset-0 grid place-items-center text-sm font-semibold text-slate-700">{pct}%</div>
+                    </div>
+                );
+            };
+
+            const monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
             return (
-                <div className="p-4 sm:p-6 pb-24 space-y-6 font-sans dash-bg-mesh">
+                <div className="p-4 md:p-6 lg:p-8 max-w-[1280px] mx-auto space-y-6 md:space-y-8">
+                    <header className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <p className="text-[26px] leading-tight font-semibold text-slate-900">Dashboard</p>
+                            <p className="text-slate-500 text-base mt-1">{dateLabel}</p>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                            <span className="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg font-medium"><i className="fas fa-shield-check mr-1.5 text-blue-500"></i>Trusted Workflow</span>
+                            <span className="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg font-medium"><i className="fas fa-circle text-emerald-500 text-[8px] mr-1.5 align-middle"></i>Sync Online</span>
+                        </div>
+                    </header>
 
-                    {/* === GREETING HEADER === */}
-                    <div className="anim-fade-up anim-delay-1 overflow-hidden">
-                        <div className="flex items-start justify-between gap-4 flex-wrap">
-                            <div>
-                                <h2 className="text-3xl sm:text-4xl font-extrabold theme-text tracking-tight">{greeting}, <span className="gradient-text-indigo">{user?.name || 'Notary'}</span>.</h2>
-                                <p className="theme-text-muted mt-1.5 flex items-center gap-2">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
-                                    {dateLabel}
-                                </p>
+                    <section className="bg-white rounded-2xl p-4 md:p-5 shadow-sm space-y-4">
+                        <h2 className="sr-only">{greeting}</h2>
+                        <h3 className="text-lg font-semibold text-slate-900">Today at a Glance</h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="rounded-xl bg-slate-50 p-4 min-h-[126px] flex flex-col justify-between">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-[13px] text-slate-500 font-medium">Jobs Today</p>
+                                        <p className="text-3xl leading-none font-semibold text-slate-900 mt-2">{dailyBrief.jobsToday}</p>
+                                    </div>
+                                    <Sparkline points={sparkJobs} />
+                                </div>
                             </div>
-                            <button onClick={() => setView('Add Appointment')} className="hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-semibold shadow-lg shadow-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/30 hover:-translate-y-0.5 transition-all duration-300">
-                                <i className="fas fa-plus"></i> New Appointment
+
+                            <button onClick={() => setView('finances')} className="rounded-xl bg-slate-50 p-4 min-h-[126px] text-left flex flex-col justify-between">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-[13px] text-slate-500 font-medium">Potential Revenue</p>
+                                        <p className="text-3xl leading-none font-semibold text-slate-900 mt-2">${dailyBrief.potentialRevenue.toLocaleString()}</p>
+                                    </div>
+                                    <Sparkline points={sparkRevenue} />
+                                </div>
+                                <p className="text-xs text-emerald-600 font-medium">+ 15%</p>
+                            </button>
+
+                            <button onClick={() => setView('credentials')} className="rounded-xl bg-slate-50 p-4 min-h-[126px] text-left flex flex-col justify-between">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-[13px] text-slate-500 font-medium">Open Risks</p>
+                                        <p className="text-3xl leading-none font-semibold text-slate-900 mt-2">{dailyBrief.openRisks}</p>
+                                    </div>
+                                    <Sparkline points={sparkRisks} />
+                                </div>
                             </button>
                         </div>
-                    </div>
 
-                    {/* === SETUP CHECKLIST (preserved) === */}
-                    <div className="anim-fade-up anim-delay-2">
-                        <SetupChecklistCard user={user} appointments={appointments} setView={setView} onOpenSettings={onOpenSettings} />
-                    </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="rounded-xl bg-slate-50 p-4 min-h-[110px] flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-[13px] text-slate-500 font-medium">Conversion Rate</p>
+                                    <p className="text-3xl leading-none font-semibold text-slate-900 mt-2">{conversionRate}%</p>
+                                    <p className="text-xs text-emerald-600 font-medium mt-2">+ 4.5%</p>
+                                </div>
+                                <Sparkline points={sparkConversion} />
+                            </div>
 
-                    {/* === PROFILE COMPLETION (preserved) === */}
-                    {(() => {
-                        const p = computeProfileProgress(user);
-                        if (p.completed) return null;
-                        return (
-                            <div className="anim-fade-up anim-delay-2 glass-card rounded-2xl p-5">
-                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap'}}>
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
-                                                <i className="fas fa-user-pen text-white text-sm"></i>
-                                            </div>
-                                            <span style={{fontWeight:900}} className="theme-text">Complete Your Profile</span>
-                                        </div>
-                                        <div className="theme-text-muted" style={{fontSize:13, marginTop:6}}>Add your name and phone so confirmations and exports are ready when you are.</div>
+                            <div className="rounded-xl bg-slate-50 p-4 min-h-[110px] flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-[13px] text-slate-500 font-medium">Operations</p>
+                                    <p className="text-3xl leading-none font-semibold text-slate-900 mt-2">{operationsPct}%</p>
+                                    <p className="text-xs text-emerald-600 font-medium mt-2">+ 6%</p>
+                                </div>
+                                <Sparkline points={sparkCompliance} stroke="#94a3b8" fill="rgba(148,163,184,0.15)" />
+                            </div>
+                        </div>
+                    </section>
+
+                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-6 items-start">
+                        <div className="xl:col-span-2 space-y-4 md:space-y-6">
+                            <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="bg-white rounded-2xl p-5 shadow-sm">
+                                    <h3 className="text-lg font-medium text-slate-900">Quick Actions</h3>
+                                    <div className="mt-4 h-px bg-slate-200"></div>
+                                    <div className="flex flex-wrap gap-2 mt-4">
+                                        {quickActions.map(a => (
+                                            <button
+                                                key={a.label}
+                                                onClick={a.onClick}
+                                                className={a.primary
+                                                    ? 'px-5 py-2.5 rounded-xl bg-blue-700 text-white text-sm font-semibold shadow-sm'
+                                                    : 'px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200'}
+                                            >
+                                                {a.label}
+                                            </button>
+                                        ))}
+                                        <button onClick={() => setView('Add Appointment')} className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200">New Appointment</button>
                                     </div>
-                                    <button className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold shadow-lg shadow-amber-500/20 hover:-translate-y-0.5 transition-all duration-300" onClick={() => { if(onOpenSettings) onOpenSettings(); }}>
-                                        Update Profile
+                                </div>
+
+                                <div className="bg-white rounded-2xl p-5 shadow-sm">
+                                    <h3 className="text-lg font-medium text-slate-900">Today&apos;s Agenda</h3>
+                                    <div className="mt-4 h-px bg-slate-200"></div>
+                                    <p className="text-[34px] font-semibold text-slate-900 mt-4">{todaysJobs.length} upcoming signing{todaysJobs.length === 1 ? '' : 's'}</p>
+                                    <div className="mt-4 flex gap-2">
+                                        <button onClick={() => setView('schedule')} className="px-5 py-2.5 rounded-xl bg-blue-700 text-white text-sm font-semibold shadow-sm">View Schedule</button>
+                                        <button onClick={() => setView('Add Appointment')} className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-medium">Add Appointment</button>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section className="bg-white rounded-2xl p-5 shadow-sm">
+                                <h3 className="text-lg font-medium text-slate-900 mb-4">Operational Status</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div className="rounded-xl bg-slate-50 p-4">
+                                        <p className="text-[13px] text-slate-500 font-medium">Revenue (YTD)</p>
+                                        <p className="text-3xl leading-none font-semibold text-slate-900 mt-2">${ytdRevenue.toLocaleString()}</p>
+                                        <p className="text-xs text-emerald-600 font-medium mt-2">▲ 12.5% vs last month</p>
+                                    </div>
+
+                                    <div className="rounded-xl bg-slate-50 p-4">
+                                        <p className="text-[13px] text-slate-500 font-medium mb-3">Sales Pipeline</p>
+                                        <div className="h-3 rounded-full bg-slate-200 overflow-hidden">
+                                            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, Math.max(8, Math.round((potentialRevenue / Math.max(potentialRevenue + ytdRevenue, 1)) * 100)))}%` }}></div>
+                                        </div>
+                                        <div className="grid grid-cols-3 text-xs text-slate-500 mt-3">
+                                            <span>${potentialRevenue.toLocaleString()}</span>
+                                            <span className="text-center">${Math.round((potentialRevenue + ytdRevenue) / 2).toLocaleString()}</span>
+                                            <span className="text-right">${Math.round(potentialRevenue + ytdRevenue).toLocaleString()}</span>
+                                        </div>
+                                    </div>
+
+                                    <button onClick={() => setView('finances')} className="rounded-xl bg-slate-50 p-4 text-left">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div>
+                                                <p className="text-[13px] text-slate-500 font-medium">Open Invoices</p>
+                                                <p className="text-3xl leading-none font-semibold text-slate-900 mt-2">${openInvoicesAmount.toLocaleString()}</p>
+                                                <p className="text-xs text-emerald-600 font-medium mt-2">▲ {unpaidInvoices} this week</p>
+                                            </div>
+                                            <Sparkline points={sparkInvoices} stroke="#d18a2d" fill="rgba(209,138,45,0.12)" />
+                                        </div>
+                                    </button>
+
+                                    <button onClick={() => setView('credentials')} className="rounded-xl bg-slate-50 p-4 text-left">
+                                        <p className="text-[13px] text-slate-500 font-medium">Compliance Status</p>
+                                        <div className="mt-3 flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-3xl leading-none font-semibold text-slate-900">{compliancePct}%</p>
+                                                <p className="text-base text-slate-700 mt-1">{complianceState === 'critical' ? 'At Risk' : 'Compliant'}</p>
+                                                <p className="text-xs text-emerald-600 font-medium mt-2">▲ 6% this month</p>
+                                            </div>
+                                            <Ring percent={compliancePct} />
+                                        </div>
                                     </button>
                                 </div>
-                                <div style={{marginTop:10}}>
-                                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                        Name: {p.name ? '✓' : '—'} &middot; Phone: {p.phone ? '✓' : '—'}
+                            </section>
+
+                            <section className="bg-white rounded-2xl p-5 shadow-sm">
+                                <div className="flex items-baseline justify-between gap-3 mb-4">
+                                    <h3 className="text-lg font-medium text-slate-900">Revenue Trend</h3>
+                                    <p className="text-slate-500 text-sm">Last 12 Months</p>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 p-4">
+                                    <div className="h-[220px] relative">
+                                        <svg viewBox="0 0 1000 260" className="w-full h-full">
+                                            {[0, 1, 2, 3, 4].map(i => (
+                                                <line key={i} x1="0" x2="1000" y1={40 + i * 45} y2={40 + i * 45} stroke="#e2e8f0" strokeWidth="1" />
+                                            ))}
+                                            <path
+                                                d={toSparkPath(revenueNorm, 1000, 200).replace(/(M|L)\s([0-9.]+)\s([0-9.]+)/g, (m, cmd, x, y) => `${cmd} ${x} ${Number(y) + 20}`)}
+                                                fill="none"
+                                                stroke="#5f8dd9"
+                                                strokeWidth="3"
+                                                strokeLinecap="round"
+                                            ></path>
+                                        </svg>
+                                    </div>
+                                    <div className="grid grid-cols-12 text-xs text-slate-500 mt-2">
+                                        {monthLabels.map(m => <span key={m} className="text-center">{m}</span>)}
                                     </div>
                                 </div>
-                            </div>
-                        );
-                    })()}
+                            </section>
 
-                    {/* === DAILY BRIEF — Hero Card === */}
-                    <div className="anim-fade-scale anim-delay-3 rounded-2xl p-6 overflow-hidden gradient-mesh-indigo glass-card" style={{border: '1px solid rgba(99, 102, 241, 0.12)'}}>
-                        <div className="flex items-center justify-between mb-5">
-                            <div className="flex items-center gap-3">
-                                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 via-blue-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-                                    <i className="fas fa-bolt text-white text-lg"></i>
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-extrabold theme-text tracking-tight">Daily Brief</h3>
-                                    <p className="text-xs theme-text-muted">{dateLabel}</p>
-                                </div>
-                            </div>
-                            <button onClick={() => setView('schedule')} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors">
-                                View Schedule <i className="fas fa-arrow-right"></i>
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <button onClick={() => setView('schedule')} className="text-left p-4 rounded-xl glass-card glow-border group cursor-pointer">
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className="kpi-icon-ring w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-md">
-                                        <i className="fas fa-briefcase text-white text-sm"></i>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-3xl font-extrabold text-blue-600 leading-none">{dailyBrief.jobsToday}</p>
-                                    </div>
-                                </div>
-                                <p className="text-xs font-bold theme-text-muted uppercase tracking-wider">Jobs Today</p>
-                                {dailyBrief.jobsToday > 0 && nextScheduled && (
-                                    <p className="text-xs theme-text-muted mt-1 truncate">
-                                        <i className="fas fa-clock mr-1 text-blue-400"></i>
-                                        Next: {nextScheduled.time || 'TBD'}
-                                    </p>
-                                )}
-                            </button>
-
-                            <button onClick={() => setView('finances')} className="text-left p-4 rounded-xl glass-card glow-border group cursor-pointer">
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className="kpi-icon-ring w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-400 flex items-center justify-center shadow-md">
-                                        <i className="fas fa-coins text-white text-sm"></i>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-3xl font-extrabold text-emerald-600 leading-none">${dailyBrief.potentialRevenue.toLocaleString()}</p>
-                                    </div>
-                                </div>
-                                <p className="text-xs font-bold theme-text-muted uppercase tracking-wider">Potential Revenue</p>
-                                <p className="text-xs theme-text-muted mt-1">
-                                    <i className="fas fa-chart-line mr-1 text-emerald-400"></i>
-                                    From today's jobs
-                                </p>
-                            </button>
-
-                            <button onClick={() => dailyBrief.openRisks > 0 ? setView('credentials') : null} className="text-left p-4 rounded-xl glass-card glow-border group cursor-pointer">
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className={`kpi-icon-ring w-10 h-10 rounded-xl flex items-center justify-center shadow-md ${dailyBrief.openRisks > 0 ? 'bg-gradient-to-br from-amber-500 to-orange-400' : 'bg-gradient-to-br from-emerald-500 to-green-400'}`}>
-                                        <i className={`fas ${dailyBrief.openRisks > 0 ? 'fa-exclamation-triangle' : 'fa-shield-check'} text-white text-sm`}></i>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className={`text-3xl font-extrabold leading-none ${dailyBrief.openRisks > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{dailyBrief.openRisks}</p>
-                                    </div>
-                                </div>
-                                <p className="text-xs font-bold theme-text-muted uppercase tracking-wider">Open Risks</p>
-                                <p className="text-xs theme-text-muted mt-1">
-                                    <i className={`fas ${dailyBrief.openRisks > 0 ? 'fa-bell text-amber-400' : 'fa-check text-emerald-400'} mr-1`}></i>
-                                    {dailyBrief.openRisks > 0 ? 'Needs attention' : 'All clear'}
-                                </p>
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* === QUICK ACTIONS BAR === */}
-                    <div className="anim-fade-up anim-delay-4 flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                        {quickActions.map((action, i) => (
-                            <button
-                                key={action.label}
-                                onClick={action.onClick}
-                                className="action-pill flex-shrink-0 px-4 py-2.5 rounded-xl font-semibold theme-text text-sm flex items-center gap-2.5 group"
-                            >
-                                <span className={`w-7 h-7 rounded-lg bg-gradient-to-br ${action.gradient} flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-200`}>
-                                    <i className={`fas ${action.icon} text-white text-[11px]`}></i>
-                                </span>
-                                {action.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* === MAIN GRID === */}
-                    <div className="dashboard-flow grid grid-cols-1 xl:grid-cols-3 gap-6">
-
-                        {/* --- LEFT COLUMN (2/3) --- */}
-                        <div className="xl:col-span-2 space-y-6">
-
-                            {/* KPI Cards Row */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {/* Revenue YTD */}
-                                <div className="anim-fade-scale anim-delay-4 kpi-enhanced glass-card p-5 gradient-mesh-emerald">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <p className="theme-text-muted text-[11px] font-bold uppercase tracking-widest">Revenue (YTD)</p>
-                                        <div className="kpi-icon-ring bg-gradient-to-br from-emerald-500 to-teal-400 shadow-md">
-                                            <i className="fas fa-dollar-sign text-white text-sm"></i>
-                                        </div>
-                                    </div>
-                                    <p className="text-3xl font-extrabold gradient-text-emerald truncate">${ytdRevenue.toLocaleString()}</p>
-                                    <div className="mt-3 flex items-center gap-1.5">
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-bold">
-                                            <i className="fas fa-arrow-trend-up"></i> +12.5%
-                                        </span>
-                                        <span className="text-[11px] theme-text-muted">vs last month</span>
-                                    </div>
-                                </div>
-
-                                {/* Upcoming Signings */}
-                                <div className="anim-fade-scale anim-delay-5 kpi-enhanced glass-card p-5 gradient-mesh-indigo">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <p className="theme-text-muted text-[11px] font-bold uppercase tracking-widest">Upcoming</p>
-                                        <div className="kpi-icon-ring bg-gradient-to-br from-blue-500 to-indigo-500 shadow-md">
-                                            <i className="fas fa-calendar-check text-white text-sm"></i>
-                                        </div>
-                                    </div>
-                                    <p className="text-3xl font-extrabold gradient-text-indigo">{scheduled.length}</p>
-                                    <p className="theme-text-muted text-xs mt-3 truncate">{nextScheduled ? `Next: ${nextScheduled.clientName || 'Client'} \u2022 ${nextScheduled.dt.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : 'No upcoming appointments'}</p>
-                                </div>
-
-                                {/* Compliance */}
-                                <button onClick={() => setView('credentials')} className="anim-fade-scale anim-delay-6 kpi-enhanced glass-card p-5 text-left gradient-mesh-amber">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <p className="theme-text-muted text-[11px] font-bold uppercase tracking-widest">Compliance</p>
-                                        <div className={`kpi-icon-ring shadow-md ${complianceState === 'clear' ? 'bg-gradient-to-br from-emerald-500 to-green-400' : complianceState === 'warning' ? 'bg-gradient-to-br from-amber-500 to-orange-400' : 'bg-gradient-to-br from-red-500 to-rose-400'}`}>
-                                            <i className={`fas ${complianceState === 'clear' ? 'fa-shield-check' : 'fa-triangle-exclamation'} text-white text-sm`}></i>
-                                        </div>
-                                    </div>
-                                    <p className={`text-2xl font-extrabold truncate ${complianceState === 'clear' ? 'text-emerald-600' : complianceState === 'warning' ? 'text-amber-600' : 'text-red-600'}`}>
-                                        {complianceState === 'clear' ? 'All Clear' : complianceState === 'warning' ? 'Attention' : 'Critical'}
-                                    </p>
-                                    <p className="theme-text-muted text-xs mt-3 truncate">
-                                        {urgentCred ? `${urgentCred.name || 'Credential'} \u2022 ${urgentCred.daysLeft}d left` : 'Valid for 60+ days'}
-                                    </p>
-                                </button>
-                            </div>
-
-                            {/* Revenue Chart */}
-                            <div className="anim-fade-up anim-delay-6 chart-glass p-5">
-                                <div className="flex items-center justify-between mb-5">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
-                                            <i className="fas fa-chart-area text-white text-xs"></i>
-                                        </div>
-                                        <h3 className="text-lg font-extrabold theme-text tracking-tight">Revenue Trend</h3>
-                                    </div>
-                                    <button onClick={() => setView('finances')} className="text-xs font-bold theme-text-muted hover:text-indigo-600 transition-colors">Open Finances <i className="fas fa-arrow-right ml-1"></i></button>
-                                </div>
-                                <IncomeChart appointments={safeAppointments} />
-                            </div>
-
-                            {/* Recent Activity */}
-                            <div className="anim-fade-up anim-delay-7 glass-card rounded-2xl p-5 overflow-hidden">
-                                <div className="flex items-center justify-between mb-5">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center">
-                                            <i className="fas fa-clock-rotate-left text-white text-xs"></i>
-                                        </div>
-                                        <h3 className="text-lg font-extrabold theme-text tracking-tight">Recent Activity</h3>
-                                    </div>
-                                </div>
+                            <section className="bg-white rounded-2xl p-5 shadow-sm">
+                                <h3 className="text-lg font-medium text-slate-900 mb-4">Recent Activity</h3>
                                 {recentActivity.length === 0 ? (
-                                    <div className="rounded-xl border-2 border-dashed theme-border p-8 text-center">
-                                        <div className="w-14 h-14 mx-auto rounded-2xl bg-slate-50 flex items-center justify-center mb-3">
-                                            <i className="fas fa-inbox text-slate-300 text-xl"></i>
-                                        </div>
-                                        <p className="theme-text-muted text-sm font-medium">No recent activity yet. Create your first appointment to get started.</p>
-                                    </div>
+                                    <div className="text-slate-500 text-base py-6 rounded-xl bg-slate-50">No recent activity yet. Start by creating your first appointment.</div>
                                 ) : (
-                                    <div className="overflow-x-auto -mx-1">
-                                        <table className="min-w-full text-sm">
-                                            <thead>
-                                                <tr className="theme-text-muted text-[10px] uppercase tracking-widest font-bold border-b theme-border">
-                                                    <th className="text-left py-2.5 pr-3 pl-1">Client</th>
-                                                    <th className="text-left py-2.5 pr-3">Service</th>
-                                                    <th className="text-left py-2.5 pr-3">Date / Time</th>
-                                                    <th className="text-left py-2.5 pr-3">Fee</th>
-                                                    <th className="text-left py-2.5">Status</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {recentActivity.map((item, idx) => {
-                                                    const initials = (item.clientName || 'NA').split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
-                                                    return (
-                                                        <tr key={item.id} className={`border-b theme-border hover:bg-indigo-50/30 transition-colors ${idx === 0 ? '' : ''}`}>
-                                                            <td className="py-3.5 pr-3 pl-1">
-                                                                <div className="flex items-center gap-2.5 min-w-0">
-                                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-100 to-blue-100 flex items-center justify-center text-xs font-bold text-indigo-600 flex-shrink-0">{initials}</div>
-                                                                    <span className="theme-text font-semibold truncate max-w-[150px]">{item.clientName || 'Unknown'}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td className="py-3.5 pr-3 theme-text-muted truncate max-w-[130px]">{item.type || 'Notary Service'}</td>
-                                                            <td className="py-3.5 pr-3 theme-text-muted truncate max-w-[160px] font-mono text-xs">{isNaN(item.dt.getTime()) ? '\u2014' : item.dt.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
-                                                            <td className="py-3.5 pr-3 theme-text font-bold">${parseFloat(item.fee || 0).toFixed(2)}</td>
-                                                            <td className="py-3.5"><span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${statusPill(item.status)}`}>{item.status || 'Scheduled'}</span></td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* --- RIGHT COLUMN (1/3) --- */}
-                        <div className="xl:col-span-1 space-y-6">
-
-                            {/* Today's Agenda */}
-                            <div className="anim-slide-right anim-delay-5 glass-card rounded-2xl p-5">
-                                <div className="flex items-center justify-between mb-5">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                                            <i className="fas fa-calendar-day text-white text-xs"></i>
-                                        </div>
-                                        <h3 className="font-extrabold theme-text tracking-tight">Today</h3>
-                                    </div>
-                                    <button onClick={() => setView('schedule')} className="text-[11px] font-bold theme-text-muted hover:text-indigo-600 transition-colors">View all</button>
-                                </div>
-                                {todaysJobs.length === 0 ? (
-                                    <div className="rounded-xl border-2 border-dashed theme-border p-6 text-center">
-                                        <div className="w-12 h-12 mx-auto rounded-full bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center mb-3">
-                                            <i className="fas fa-sun text-indigo-400 text-lg"></i>
-                                        </div>
-                                        <p className="font-bold theme-text text-sm mb-1">Schedule clear!</p>
-                                        <p className="text-xs theme-text-muted mb-4">Great day for marketing or admin catch-up.</p>
-                                        <button onClick={() => setView('Add Appointment')} className="px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-sm font-semibold shadow-md shadow-indigo-500/20 hover:-translate-y-0.5 transition-all duration-200">
-                                            <i className="fas fa-plus mr-1.5"></i>Add Appointment
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {todaysJobs.map((job, idx) => {
-                                            const done = job.status === 'Completed' || job.status === 'Paid';
+                                    <div className="space-y-2">
+                                        {recentActivity.map(item => {
+                                            const initials = (item.clientName || 'NA').split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
                                             return (
-                                                <div key={job.id} className={`relative pl-5 ${idx < todaysJobs.length - 1 ? 'pb-3' : ''}`}>
-                                                    {/* Timeline line */}
-                                                    {idx < todaysJobs.length - 1 && (
-                                                        <div className="absolute left-[5px] top-[14px] bottom-0 w-[2px]" style={{background: 'linear-gradient(to bottom, rgba(99,102,241,0.3), rgba(139,92,246,0.1))'}}></div>
-                                                    )}
-                                                    {/* Timeline dot */}
-                                                    <div className={`absolute left-0 top-[6px] w-[12px] h-[12px] rounded-full border-2 ${done ? 'bg-emerald-500 border-emerald-300' : 'bg-indigo-500 border-indigo-300'}`} style={{boxShadow: done ? '0 0 8px rgba(16,185,129,0.4)' : '0 0 8px rgba(99,102,241,0.4)'}}></div>
-
-                                                    <div className="glass-card rounded-xl p-3.5 ml-2">
-                                                        <div className="flex items-start justify-between gap-2">
-                                                            <div className="min-w-0">
-                                                                <p className="text-[11px] font-bold theme-text-muted">{job.time || 'TBD'}</p>
-                                                                <p className="font-bold theme-text truncate text-sm">{job.clientName || 'Client'}</p>
-                                                                <p className="text-[11px] theme-text-muted truncate">{job.type || 'Notary Service'}</p>
-                                                            </div>
-                                                            <div className="flex gap-1.5 flex-shrink-0">
-                                                                <button className="w-7 h-7 rounded-lg border theme-border theme-text-muted hover:text-indigo-600 hover:border-indigo-300 transition-colors"><i className="fas fa-map-marker-alt text-[10px]"></i></button>
-                                                                <button onClick={() => setView('schedule')} className="w-7 h-7 rounded-lg border theme-border theme-text-muted hover:text-indigo-600 hover:border-indigo-300 transition-colors"><i className="fas fa-pen text-[10px]"></i></button>
-                                                            </div>
-                                                        </div>
-                                                        {done && (
-                                                            <div className="mt-2 flex items-center gap-1.5">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                                <span className="text-[10px] font-bold text-emerald-600">Completed</span>
-                                                            </div>
-                                                        )}
+                                                <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
+                                                    <div className="w-9 h-9 rounded-full bg-slate-200 text-slate-700 text-xs font-semibold grid place-items-center">{initials}</div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-medium text-slate-900 truncate">{item.clientName || 'Client'}</p>
+                                                        <p className="text-xs text-slate-500 truncate">{item.date || 'No date'} • {item.time || 'No time'}</p>
                                                     </div>
+                                                    <span className={`text-[11px] px-2 py-1 rounded-full font-semibold ${statusPill(item.status)}`}>{item.status || 'Scheduled'}</span>
                                                 </div>
                                             );
                                         })}
                                     </div>
                                 )}
-                            </div>
+                            </section>
 
-                            {/* Action Items */}
-                            <div className="anim-slide-right anim-delay-7 glass-card rounded-2xl p-5">
-                                <div className="flex items-center justify-between mb-5">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center">
-                                            <i className="fas fa-bolt text-white text-xs"></i>
-                                        </div>
-                                        <h3 className="font-extrabold theme-text tracking-tight">Actions</h3>
-                                    </div>
-                                    <span className="text-[11px] font-bold theme-text-muted px-2 py-0.5 rounded-full bg-slate-100">{actionItems.length}</span>
+                            <section className="bg-white rounded-2xl p-5 shadow-sm">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-medium text-slate-900">Setup Progress</h3>
+                                    <span className="text-slate-600 text-sm font-medium">{setupPct}% Complete</span>
                                 </div>
-                                {actionItems.length === 0 ? (
-                                    <div className="rounded-xl border-2 border-dashed theme-border p-6 text-center">
-                                        <div className="w-12 h-12 mx-auto rounded-full bg-emerald-50 flex items-center justify-center mb-3">
-                                            <i className="fas fa-check-circle text-emerald-500 text-xl"></i>
-                                        </div>
-                                        <p className="font-bold theme-text text-sm">All caught up!</p>
-                                        <p className="text-xs theme-text-muted mt-1">No urgent actions needed.</p>
-                                    </div>
+                                <div className="w-full h-3 bg-slate-200 rounded-full mt-4 overflow-hidden">
+                                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${setupPct}%` }}></div>
+                                </div>
+                                <p className="text-slate-500 mt-3">Complete your profile to unlock full workflow.</p>
+                            </section>
+                        </div>
+
+                        <aside className="space-y-4 md:space-y-6">
+                            <section className="bg-white rounded-2xl p-5 shadow-sm">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-medium text-slate-900">Upcoming Signings</h3>
+                                    <button onClick={() => setView('schedule')} className="text-sm text-blue-700 font-medium">View All</button>
+                                </div>
+                                {upcomingSignings.length === 0 ? (
+                                    <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">No upcoming signings scheduled.</div>
                                 ) : (
-                                    <div className="space-y-2.5">
-                                        {actionItems.map((item, idx) => (
-                                            <button key={item.key} onClick={item.onClick} className="action-item-card w-full text-left p-3.5 group">
-                                                <div className="flex items-start gap-3">
-                                                    <div className={`w-9 h-9 rounded-xl ${item.iconBg} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}>
-                                                        <i className={`${item.icon} ${item.iconClass} text-sm`}></i>
+                                    <div className="space-y-2">
+                                        {upcomingSignings.map(item => (
+                                            <div key={item.id} className="rounded-xl bg-slate-50 p-3">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-slate-900">{item.time || 'TBD'} • {item.clientName || 'Client'}</p>
+                                                        <p className="text-xs text-slate-500 mt-1 truncate">{item.address || item.notes || 'No address available'}</p>
                                                     </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2 mb-0.5">
-                                                            <p className="text-sm font-bold theme-text truncate">{item.title}</p>
-                                                        </div>
-                                                        <p className="text-[11px] theme-text-muted">{item.subtitle}</p>
-                                                        {item.badge && (
-                                                            <span className={`mt-1.5 inline-flex px-2 py-0.5 rounded text-[9px] font-extrabold tracking-wider ${
-                                                                item.badge === 'URGENT' ? 'bg-red-100 text-red-700' :
-                                                                item.badge === 'ACTION NEEDED' ? 'bg-red-100 text-red-700' :
-                                                                item.badge === 'SOON' ? 'bg-orange-100 text-orange-700' :
-                                                                item.badge === 'WARNING' ? 'bg-amber-100 text-amber-700' :
-                                                                item.badge === 'FOLLOW-UP' ? 'bg-amber-100 text-amber-700' :
-                                                                'bg-blue-100 text-blue-700'
-                                                            }`}>{item.badge}</span>
-                                                        )}
-                                                    </div>
-                                                    <i className="fas fa-chevron-right text-[10px] theme-text-muted self-center flex-shrink-0 group-hover:translate-x-0.5 transition-transform"></i>
+                                                    <button onClick={() => setView('schedule')} className="w-7 h-7 rounded-md bg-white text-slate-500"><i className="fas fa-chevron-right text-xs"></i></button>
                                                 </div>
-                                            </button>
+                                            </div>
                                         ))}
                                     </div>
                                 )}
-                            </div>
-                        </div>
+                            </section>
+
+                            <section className="bg-white rounded-2xl p-5 shadow-sm">
+                                <h3 className="text-lg font-medium text-slate-900 mb-4">Action Items</h3>
+                                <div className="space-y-3">
+                                    {actionItems.slice(0, 3).map(item => (
+                                        <button key={item.key} onClick={item.onClick} className="w-full text-left rounded-xl bg-slate-50 p-3">
+                                            <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                                            <p className="text-xs text-slate-500 mt-1">{item.subtitle}</p>
+                                        </button>
+                                    ))}
+                                    <div className="rounded-xl bg-slate-50 p-3">
+                                        <p className="text-sm font-semibold text-slate-900">{missingClientInfo} missing client info</p>
+                                        <p className="text-xs text-slate-500 mt-1">Update phone/email where absent.</p>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section className="bg-white rounded-2xl p-5 shadow-sm">
+                                <h3 className="text-lg font-medium text-slate-900 mb-3">Business Health</h3>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex items-center justify-between"><span className="text-slate-500">Revenue (YTD)</span><span className="font-semibold text-slate-900">${ytdRevenue.toLocaleString()}</span></div>
+                                    <div className="flex items-center justify-between"><span className="text-slate-500">Scheduled Jobs</span><span className="font-semibold text-slate-900">{scheduled.length}</span></div>
+                                    <div className="flex items-center justify-between"><span className="text-slate-500">Next Signing</span><span className="font-semibold text-slate-900">{nextScheduled?.time || '—'}</span></div>
+                                </div>
+                                <button onClick={onOpenSettings} className="mt-4 text-sm text-blue-700 font-medium">Open Settings</button>
+                            </section>
+                        </aside>
                     </div>
                 </div>
             );
         };
-
 
         const AppointmentForm = ({ onSave, onCancel, initialData }) => {
             const [formData, setFormData] = useState({ clientName: '', date: '', time: '', fee: '', status: 'Scheduled', address: '', phone: '', email: '', type: '', notes: '' });
