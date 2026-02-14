@@ -2807,7 +2807,7 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
             return <div className="h-64 w-full"><canvas ref={canvasRef}></canvas></div>;
         };
 
-        const Dashboard = ({ appointments, credentials, setView, user, onOpenSettings }) => {
+                const Dashboard = ({ appointments, credentials, setView, user, onOpenSettings }) => {
             const now = new Date();
             const hour = now.getHours();
             const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
@@ -2851,9 +2851,10 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
             };
 
             const quickActions = [
-                { label: 'Log Journal Entry', icon: 'fa-pen-to-square', onClick: () => setView('journal') },
-                { label: 'Add Expense', icon: 'fa-dollar-sign', onClick: () => setView('finances') },
-                { label: 'Ask AI Coach', icon: 'fa-robot', onClick: () => setView('trainer') }
+                { label: 'New Appointment', icon: 'fa-calendar-plus', gradient: 'from-blue-500 to-indigo-500', onClick: () => setView('Add Appointment') },
+                { label: 'Log Journal Entry', icon: 'fa-pen-to-square', gradient: 'from-purple-500 to-violet-500', onClick: () => setView('journal') },
+                { label: 'Add Expense', icon: 'fa-receipt', gradient: 'from-emerald-500 to-teal-500', onClick: () => setView('finances') },
+                { label: 'Ask AI Coach', icon: 'fa-robot', gradient: 'from-amber-500 to-orange-500', onClick: () => setView('trainer') }
             ];
 
             const dailyBrief = {
@@ -2862,8 +2863,6 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                 openRisks: (urgentCred ? 1 : 0) + (unpaidInvoices > 0 ? 1 : 0)
             };
 
-            // Enhanced Action Queue with Priority System (0-100)
-            // Priority Levels: 100=Critical, 90=High, 70=Medium-High, 50=Medium, 30=Low, 20=Very Low
             const appointmentsNeedingFollowup = safeAppointments.filter(a => a.status === 'Completed' && !a.followupDone).length;
             const missingClientInfo = safeAppointments.filter(a => !a.phone || !a.email).length;
             
@@ -2915,198 +2914,256 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
             ].sort((a, b) => b.priority - a.priority).filter(item => item.priority >= 40 || item.badge !== null);
 
             return (
-                <div className="p-6 pb-24 space-y-6 font-sans">
-                    <div className="overflow-hidden">
-                        <h2 className="text-3xl font-bold theme-text truncate">{greeting}, {user?.name || 'Notary'}.</h2>
-                        <p className="theme-text-muted mt-1 truncate">{dateLabel}</p>
-                    <SetupChecklistCard user={user} appointments={appointments} setView={setView} onOpenSettings={onOpenSettings} />
+                <div className="p-4 sm:p-6 pb-24 space-y-6 font-sans dash-bg-mesh">
 
+                    {/* === GREETING HEADER === */}
+                    <div className="anim-fade-up anim-delay-1 overflow-hidden">
+                        <div className="flex items-start justify-between gap-4 flex-wrap">
+                            <div>
+                                <h2 className="text-3xl sm:text-4xl font-extrabold theme-text tracking-tight">{greeting}, <span className="gradient-text-indigo">{user?.name || 'Notary'}</span>.</h2>
+                                <p className="theme-text-muted mt-1.5 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
+                                    {dateLabel}
+                                </p>
+                            </div>
+                            <button onClick={() => setView('Add Appointment')} className="hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-semibold shadow-lg shadow-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/30 hover:-translate-y-0.5 transition-all duration-300">
+                                <i className="fas fa-plus"></i> New Appointment
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* === SETUP CHECKLIST (preserved) === */}
+                    <div className="anim-fade-up anim-delay-2">
+                        <SetupChecklistCard user={user} appointments={appointments} setView={setView} onOpenSettings={onOpenSettings} />
+                    </div>
+
+                    {/* === PROFILE COMPLETION (preserved) === */}
                     {(() => {
                         const p = computeProfileProgress(user);
                         if (p.completed) return null;
                         return (
-                            <div className="card">
+                            <div className="anim-fade-up anim-delay-2 glass-card rounded-2xl p-5">
                                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap'}}>
                                     <div>
-                                        <div style={{fontWeight:900}}>Complete Your Profile</div>
-                                        <div className="theme-text-muted" style={{fontSize:13}}>Add your name and phone so confirmations and exports are ready when you are.</div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+                                                <i className="fas fa-user-pen text-white text-sm"></i>
+                                            </div>
+                                            <span style={{fontWeight:900}} className="theme-text">Complete Your Profile</span>
+                                        </div>
+                                        <div className="theme-text-muted" style={{fontSize:13, marginTop:6}}>Add your name and phone so confirmations and exports are ready when you are.</div>
                                     </div>
-                                    <button className="btn btn-primary" style={{height:40}} onClick={() => { if(onOpenSettings) onOpenSettings(); }}>
+                                    <button className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold shadow-lg shadow-amber-500/20 hover:-translate-y-0.5 transition-all duration-300" onClick={() => { if(onOpenSettings) onOpenSettings(); }}>
                                         Update Profile
                                     </button>
                                 </div>
                                 <div style={{marginTop:10}}>
-                                    <div className="net-pill" title="Profile requirements">
-                                        <span className="net-dot"></span>
-                                        Name: {p.name ? '✓' : '—'} • Phone: {p.phone ? '✓' : '—'}
+                                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                        Name: {p.name ? '✓' : '—'} &middot; Phone: {p.phone ? '✓' : '—'}
                                     </div>
                                 </div>
                             </div>
                         );
                     })()}
 
-                    </div>
-
-                    {/* Daily Brief Summary Card */}
-                    <div className="theme-surface theme-border border rounded-xl p-5 shadow-md overflow-hidden" style={{background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%)'}}>
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-2">
-                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center">
-                                    <i className="fas fa-calendar-day text-white"></i>
+                    {/* === DAILY BRIEF — Hero Card === */}
+                    <div className="anim-fade-scale anim-delay-3 rounded-2xl p-6 overflow-hidden gradient-mesh-indigo glass-card" style={{border: '1px solid rgba(99, 102, 241, 0.12)'}}>
+                        <div className="flex items-center justify-between mb-5">
+                            <div className="flex items-center gap-3">
+                                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 via-blue-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                                    <i className="fas fa-bolt text-white text-lg"></i>
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold theme-text">Daily Brief</h3>
+                                    <h3 className="text-lg font-extrabold theme-text tracking-tight">Daily Brief</h3>
                                     <p className="text-xs theme-text-muted">{dateLabel}</p>
                                 </div>
                             </div>
-                            <button onClick={() => setView('schedule')} className="text-xs font-semibold text-blue-600 hover:text-blue-700">
-                                View Schedule <i className="fas fa-arrow-right ml-1"></i>
+                            <button onClick={() => setView('schedule')} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors">
+                                View Schedule <i className="fas fa-arrow-right"></i>
                             </button>
                         </div>
+
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <button onClick={() => setView('schedule')} className="text-left p-4 rounded-xl bg-white/50 hover:bg-white/80 theme-border border transition-all duration-200 hover:-translate-y-0.5">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                                        <i className="fas fa-briefcase text-blue-600 text-sm"></i>
+                            <button onClick={() => setView('schedule')} className="text-left p-4 rounded-xl glass-card glow-border group cursor-pointer">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="kpi-icon-ring w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-md">
+                                        <i className="fas fa-briefcase text-white text-sm"></i>
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-2xl font-bold text-blue-600">{dailyBrief.jobsToday}</p>
-                                        <p className="text-xs theme-text-muted truncate">Jobs Today</p>
+                                        <p className="text-3xl font-extrabold text-blue-600 leading-none">{dailyBrief.jobsToday}</p>
                                     </div>
                                 </div>
+                                <p className="text-xs font-bold theme-text-muted uppercase tracking-wider">Jobs Today</p>
                                 {dailyBrief.jobsToday > 0 && nextScheduled && (
-                                    <p className="text-xs theme-text-muted truncate">
-                                        <i className="fas fa-clock mr-1"></i>
+                                    <p className="text-xs theme-text-muted mt-1 truncate">
+                                        <i className="fas fa-clock mr-1 text-blue-400"></i>
                                         Next: {nextScheduled.time || 'TBD'}
                                     </p>
                                 )}
                             </button>
-                            <button onClick={() => setView('finances')} className="text-left p-4 rounded-xl bg-white/50 hover:bg-white/80 theme-border border transition-all duration-200 hover:-translate-y-0.5">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
-                                        <i className="fas fa-coins text-emerald-600 text-sm"></i>
+
+                            <button onClick={() => setView('finances')} className="text-left p-4 rounded-xl glass-card glow-border group cursor-pointer">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="kpi-icon-ring w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-400 flex items-center justify-center shadow-md">
+                                        <i className="fas fa-coins text-white text-sm"></i>
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-2xl font-bold text-emerald-600">${dailyBrief.potentialRevenue.toLocaleString()}</p>
-                                        <p className="text-xs theme-text-muted truncate">Potential Revenue</p>
+                                        <p className="text-3xl font-extrabold text-emerald-600 leading-none">${dailyBrief.potentialRevenue.toLocaleString()}</p>
                                     </div>
                                 </div>
-                                <p className="text-xs theme-text-muted">
-                                    <i className="fas fa-chart-line mr-1"></i>
+                                <p className="text-xs font-bold theme-text-muted uppercase tracking-wider">Potential Revenue</p>
+                                <p className="text-xs theme-text-muted mt-1">
+                                    <i className="fas fa-chart-line mr-1 text-emerald-400"></i>
                                     From today's jobs
                                 </p>
                             </button>
-                            <button onClick={() => dailyBrief.openRisks > 0 ? setView('credentials') : null} className="text-left p-4 rounded-xl bg-white/50 hover:bg-white/80 theme-border border transition-all duration-200 hover:-translate-y-0.5">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${dailyBrief.openRisks > 0 ? 'bg-amber-50' : 'bg-emerald-50'}`}>
-                                        <i className={`fas ${dailyBrief.openRisks > 0 ? 'fa-exclamation-triangle' : 'fa-shield-check'} text-sm ${dailyBrief.openRisks > 0 ? 'text-amber-600' : 'text-emerald-600'}`}></i>
+
+                            <button onClick={() => dailyBrief.openRisks > 0 ? setView('credentials') : null} className="text-left p-4 rounded-xl glass-card glow-border group cursor-pointer">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className={`kpi-icon-ring w-10 h-10 rounded-xl flex items-center justify-center shadow-md ${dailyBrief.openRisks > 0 ? 'bg-gradient-to-br from-amber-500 to-orange-400' : 'bg-gradient-to-br from-emerald-500 to-green-400'}`}>
+                                        <i className={`fas ${dailyBrief.openRisks > 0 ? 'fa-exclamation-triangle' : 'fa-shield-check'} text-white text-sm`}></i>
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className={`text-2xl font-bold ${dailyBrief.openRisks > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{dailyBrief.openRisks}</p>
-                                        <p className="text-xs theme-text-muted truncate">Open Risks</p>
+                                        <p className={`text-3xl font-extrabold leading-none ${dailyBrief.openRisks > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{dailyBrief.openRisks}</p>
                                     </div>
                                 </div>
-                                <p className="text-xs theme-text-muted">
-                                    <i className={`fas ${dailyBrief.openRisks > 0 ? 'fa-bell' : 'fa-check'} mr-1`}></i>
+                                <p className="text-xs font-bold theme-text-muted uppercase tracking-wider">Open Risks</p>
+                                <p className="text-xs theme-text-muted mt-1">
+                                    <i className={`fas ${dailyBrief.openRisks > 0 ? 'fa-bell text-amber-400' : 'fa-check text-emerald-400'} mr-1`}></i>
                                     {dailyBrief.openRisks > 0 ? 'Needs attention' : 'All clear'}
                                 </p>
                             </button>
                         </div>
                     </div>
 
-                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                        {quickActions.map(action => (
+                    {/* === QUICK ACTIONS BAR === */}
+                    <div className="anim-fade-up anim-delay-4 flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                        {quickActions.map((action, i) => (
                             <button
                                 key={action.label}
                                 onClick={action.onClick}
-                                className="flex-shrink-0 px-4 py-2.5 rounded-xl border theme-border theme-surface hover:-translate-y-0.5 shadow-sm hover:shadow-md transition-all duration-200 theme-text"
+                                className="action-pill flex-shrink-0 px-4 py-2.5 rounded-xl font-semibold theme-text text-sm flex items-center gap-2.5 group"
                             >
-                                <i className={`fas ${action.icon} mr-2 theme-text-muted`}></i>{action.label}
+                                <span className={`w-7 h-7 rounded-lg bg-gradient-to-br ${action.gradient} flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-200`}>
+                                    <i className={`fas ${action.icon} text-white text-[11px]`}></i>
+                                </span>
+                                {action.label}
                             </button>
                         ))}
                     </div>
 
+                    {/* === MAIN GRID === */}
                     <div className="dashboard-flow grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+                        {/* --- LEFT COLUMN (2/3) --- */}
                         <div className="xl:col-span-2 space-y-6">
+
+                            {/* KPI Cards Row */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {/* KPI Card 1: Revenue (YTD) - Semantic Color: Emerald (Success) */}
-                                <div className="kpi-card theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <p className="theme-text-muted text-xs font-semibold uppercase tracking-wide">Revenue (YTD)</p>
-                                        <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
-                                            <i className="fas fa-dollar-sign text-emerald-600 text-sm"></i>
+                                {/* Revenue YTD */}
+                                <div className="anim-fade-scale anim-delay-4 kpi-enhanced glass-card p-5 gradient-mesh-emerald">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <p className="theme-text-muted text-[11px] font-bold uppercase tracking-widest">Revenue (YTD)</p>
+                                        <div className="kpi-icon-ring bg-gradient-to-br from-emerald-500 to-teal-400 shadow-md">
+                                            <i className="fas fa-dollar-sign text-white text-sm"></i>
                                         </div>
                                     </div>
-                                    <p className="text-3xl font-bold text-emerald-600 truncate">${ytdRevenue.toLocaleString()}</p>
-                                    <p className="text-emerald-600 text-xs mt-2 font-semibold"><i className="fas fa-arrow-trend-up mr-1"></i>+12.5% vs last month</p>
+                                    <p className="text-3xl font-extrabold gradient-text-emerald truncate">${ytdRevenue.toLocaleString()}</p>
+                                    <div className="mt-3 flex items-center gap-1.5">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-bold">
+                                            <i className="fas fa-arrow-trend-up"></i> +12.5%
+                                        </span>
+                                        <span className="text-[11px] theme-text-muted">vs last month</span>
+                                    </div>
                                 </div>
-                                {/* KPI Card 2: Upcoming Signings - Semantic Color: Blue (Informational) */}
-                                <div className="kpi-card theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <p className="theme-text-muted text-xs font-semibold uppercase tracking-wide">Upcoming Signings</p>
-                                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                                            <i className="fas fa-calendar-check text-blue-600 text-sm"></i>
+
+                                {/* Upcoming Signings */}
+                                <div className="anim-fade-scale anim-delay-5 kpi-enhanced glass-card p-5 gradient-mesh-indigo">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <p className="theme-text-muted text-[11px] font-bold uppercase tracking-widest">Upcoming</p>
+                                        <div className="kpi-icon-ring bg-gradient-to-br from-blue-500 to-indigo-500 shadow-md">
+                                            <i className="fas fa-calendar-check text-white text-sm"></i>
                                         </div>
                                     </div>
-                                    <p className="text-3xl font-bold text-blue-600">{scheduled.length}</p>
-                                    <p className="theme-text-muted text-xs mt-2 truncate">{nextScheduled ? `Next: ${nextScheduled.clientName || 'Client'} • ${nextScheduled.dt.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : 'No upcoming appointments'}</p>
+                                    <p className="text-3xl font-extrabold gradient-text-indigo">{scheduled.length}</p>
+                                    <p className="theme-text-muted text-xs mt-3 truncate">{nextScheduled ? `Next: ${nextScheduled.clientName || 'Client'} \u2022 ${nextScheduled.dt.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : 'No upcoming appointments'}</p>
                                 </div>
-                                {/* KPI Card 3: Compliance Status - Semantic Color: Dynamic (Clear/Warning/Critical) */}
-                                <button onClick={() => setView('credentials')} className="kpi-card text-left theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <p className="theme-text-muted text-xs font-semibold uppercase tracking-wide">Compliance Status</p>
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${complianceState === 'clear' ? 'bg-emerald-50' : complianceState === 'warning' ? 'bg-amber-50' : 'bg-red-50'}`}>
-                                            <i className={`fas ${complianceState === 'clear' ? 'fa-shield-check' : 'fa-triangle-exclamation'} text-sm ${complianceState === 'clear' ? 'text-emerald-600' : complianceState === 'warning' ? 'text-amber-600' : 'text-red-600'}`}></i>
+
+                                {/* Compliance */}
+                                <button onClick={() => setView('credentials')} className="anim-fade-scale anim-delay-6 kpi-enhanced glass-card p-5 text-left gradient-mesh-amber">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <p className="theme-text-muted text-[11px] font-bold uppercase tracking-widest">Compliance</p>
+                                        <div className={`kpi-icon-ring shadow-md ${complianceState === 'clear' ? 'bg-gradient-to-br from-emerald-500 to-green-400' : complianceState === 'warning' ? 'bg-gradient-to-br from-amber-500 to-orange-400' : 'bg-gradient-to-br from-red-500 to-rose-400'}`}>
+                                            <i className={`fas ${complianceState === 'clear' ? 'fa-shield-check' : 'fa-triangle-exclamation'} text-white text-sm`}></i>
                                         </div>
                                     </div>
-                                    <p className={`text-2xl font-bold truncate ${complianceState === 'clear' ? 'text-emerald-600' : complianceState === 'warning' ? 'text-amber-600' : 'text-red-600'}`}>
-                                        {complianceState === 'clear' ? 'All Clear' : complianceState === 'warning' ? 'Attention Needed' : 'Critical'}
+                                    <p className={`text-2xl font-extrabold truncate ${complianceState === 'clear' ? 'text-emerald-600' : complianceState === 'warning' ? 'text-amber-600' : 'text-red-600'}`}>
+                                        {complianceState === 'clear' ? 'All Clear' : complianceState === 'warning' ? 'Attention' : 'Critical'}
                                     </p>
-                                    <p className="theme-text-muted text-xs mt-2 truncate">
-                                        {urgentCred ? `${urgentCred.name || 'Credential'} expires in ${urgentCred.daysLeft} days` : 'All credentials valid for 60+ days'}
+                                    <p className="theme-text-muted text-xs mt-3 truncate">
+                                        {urgentCred ? `${urgentCred.name || 'Credential'} \u2022 ${urgentCred.daysLeft}d left` : 'Valid for 60+ days'}
                                     </p>
                                 </button>
                             </div>
 
-                            <div className="theme-surface theme-border border rounded-xl p-5 shadow-sm">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-bold theme-text">Revenue Trend</h3>
-                                    <button onClick={() => setView('finances')} className="text-xs font-semibold theme-text-muted hover:theme-text">Open Finances</button>
+                            {/* Revenue Chart */}
+                            <div className="anim-fade-up anim-delay-6 chart-glass p-5">
+                                <div className="flex items-center justify-between mb-5">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
+                                            <i className="fas fa-chart-area text-white text-xs"></i>
+                                        </div>
+                                        <h3 className="text-lg font-extrabold theme-text tracking-tight">Revenue Trend</h3>
+                                    </div>
+                                    <button onClick={() => setView('finances')} className="text-xs font-bold theme-text-muted hover:text-indigo-600 transition-colors">Open Finances <i className="fas fa-arrow-right ml-1"></i></button>
                                 </div>
                                 <IncomeChart appointments={safeAppointments} />
                             </div>
 
-                            <div className="theme-surface theme-border border rounded-xl p-5 shadow-sm overflow-hidden">
-                                <h3 className="text-lg font-bold theme-text mb-4">Recent Activity</h3>
+                            {/* Recent Activity */}
+                            <div className="anim-fade-up anim-delay-7 glass-card rounded-2xl p-5 overflow-hidden">
+                                <div className="flex items-center justify-between mb-5">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center">
+                                            <i className="fas fa-clock-rotate-left text-white text-xs"></i>
+                                        </div>
+                                        <h3 className="text-lg font-extrabold theme-text tracking-tight">Recent Activity</h3>
+                                    </div>
+                                </div>
                                 {recentActivity.length === 0 ? (
-                                    <p className="theme-text-muted text-sm">No recent activity yet. Start by creating your first appointment.</p>
+                                    <div className="rounded-xl border-2 border-dashed theme-border p-8 text-center">
+                                        <div className="w-14 h-14 mx-auto rounded-2xl bg-slate-50 flex items-center justify-center mb-3">
+                                            <i className="fas fa-inbox text-slate-300 text-xl"></i>
+                                        </div>
+                                        <p className="theme-text-muted text-sm font-medium">No recent activity yet. Create your first appointment to get started.</p>
+                                    </div>
                                 ) : (
-                                    <div className="overflow-x-auto">
+                                    <div className="overflow-x-auto -mx-1">
                                         <table className="min-w-full text-sm">
                                             <thead>
-                                                <tr className="theme-text-muted text-xs uppercase tracking-wide border-b theme-border">
-                                                    <th className="text-left py-2 pr-3">Client</th>
-                                                    <th className="text-left py-2 pr-3">Service</th>
-                                                    <th className="text-left py-2 pr-3">Date / Time</th>
-                                                    <th className="text-left py-2 pr-3">Fee</th>
-                                                    <th className="text-left py-2">Status</th>
+                                                <tr className="theme-text-muted text-[10px] uppercase tracking-widest font-bold border-b theme-border">
+                                                    <th className="text-left py-2.5 pr-3 pl-1">Client</th>
+                                                    <th className="text-left py-2.5 pr-3">Service</th>
+                                                    <th className="text-left py-2.5 pr-3">Date / Time</th>
+                                                    <th className="text-left py-2.5 pr-3">Fee</th>
+                                                    <th className="text-left py-2.5">Status</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {recentActivity.map(item => {
+                                                {recentActivity.map((item, idx) => {
                                                     const initials = (item.clientName || 'NA').split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
                                                     return (
-                                                        <tr key={item.id} className="border-b theme-border">
-                                                            <td className="py-3 pr-3">
-                                                                <div className="flex items-center gap-2 min-w-0">
-                                                                    <div className="w-8 h-8 rounded-full theme-surface-muted flex items-center justify-center text-xs font-bold theme-text flex-shrink-0">{initials}</div>
-                                                                    <span className="theme-text truncate max-w-[160px]">{item.clientName || 'Unknown Client'}</span>
+                                                        <tr key={item.id} className={`border-b theme-border hover:bg-indigo-50/30 transition-colors ${idx === 0 ? '' : ''}`}>
+                                                            <td className="py-3.5 pr-3 pl-1">
+                                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-100 to-blue-100 flex items-center justify-center text-xs font-bold text-indigo-600 flex-shrink-0">{initials}</div>
+                                                                    <span className="theme-text font-semibold truncate max-w-[150px]">{item.clientName || 'Unknown'}</span>
                                                                 </div>
                                                             </td>
-                                                            <td className="py-3 pr-3 theme-text-muted truncate max-w-[140px]">{item.type || 'Notary Service'}</td>
-                                                            <td className="py-3 pr-3 theme-text-muted truncate max-w-[170px]">{isNaN(item.dt.getTime()) ? '—' : item.dt.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
-                                                            <td className="py-3 pr-3 theme-text font-semibold">${parseFloat(item.fee || 0).toFixed(2)}</td>
-                                                            <td className="py-3"><span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusPill(item.status)}`}>{item.status || 'Scheduled'}</span></td>
+                                                            <td className="py-3.5 pr-3 theme-text-muted truncate max-w-[130px]">{item.type || 'Notary Service'}</td>
+                                                            <td className="py-3.5 pr-3 theme-text-muted truncate max-w-[160px] font-mono text-xs">{isNaN(item.dt.getTime()) ? '\u2014' : item.dt.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
+                                                            <td className="py-3.5 pr-3 theme-text font-bold">${parseFloat(item.fee || 0).toFixed(2)}</td>
+                                                            <td className="py-3.5"><span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${statusPill(item.status)}`}>{item.status || 'Scheduled'}</span></td>
                                                         </tr>
                                                     );
                                                 })}
@@ -3117,34 +3174,62 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                             </div>
                         </div>
 
+                        {/* --- RIGHT COLUMN (1/3) --- */}
                         <div className="xl:col-span-1 space-y-6">
-                            <div className="card card--primary theme-surface theme-border border rounded-xl p-5 shadow-sm">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-bold theme-text">Today's Agenda</h3>
-                                    <button onClick={() => setView('schedule')} className="text-xs font-semibold theme-text-muted">View all</button>
+
+                            {/* Today's Agenda */}
+                            <div className="anim-slide-right anim-delay-5 glass-card rounded-2xl p-5">
+                                <div className="flex items-center justify-between mb-5">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                                            <i className="fas fa-calendar-day text-white text-xs"></i>
+                                        </div>
+                                        <h3 className="font-extrabold theme-text tracking-tight">Today</h3>
+                                    </div>
+                                    <button onClick={() => setView('schedule')} className="text-[11px] font-bold theme-text-muted hover:text-indigo-600 transition-colors">View all</button>
                                 </div>
                                 {todaysJobs.length === 0 ? (
-                                    <div className="rounded-xl border border-dashed theme-border p-5 text-center">
-                                        <i className="fas fa-calendar-day text-2xl theme-text-muted"></i>
-                                        <p className="mt-2 font-semibold theme-text">Schedule clear. Great day for marketing!</p>
-                                        <button onClick={() => setView('Add Appointment')} className="mt-4 px-4 py-2 rounded-lg theme-accent-btn text-sm">Add Appointment</button>
+                                    <div className="rounded-xl border-2 border-dashed theme-border p-6 text-center">
+                                        <div className="w-12 h-12 mx-auto rounded-full bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center mb-3">
+                                            <i className="fas fa-sun text-indigo-400 text-lg"></i>
+                                        </div>
+                                        <p className="font-bold theme-text text-sm mb-1">Schedule clear!</p>
+                                        <p className="text-xs theme-text-muted mb-4">Great day for marketing or admin catch-up.</p>
+                                        <button onClick={() => setView('Add Appointment')} className="px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-sm font-semibold shadow-md shadow-indigo-500/20 hover:-translate-y-0.5 transition-all duration-200">
+                                            <i className="fas fa-plus mr-1.5"></i>Add Appointment
+                                        </button>
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
-                                        {todaysJobs.map(job => {
+                                        {todaysJobs.map((job, idx) => {
                                             const done = job.status === 'Completed' || job.status === 'Paid';
                                             return (
-                                                <div key={job.id} className={`border-l-4 ${done ? 'border-emerald-500' : 'border-blue-500'} theme-surface-muted rounded-r-xl p-3`}> 
-                                                    <div className="flex items-start justify-between gap-2">
-                                                        <div className="min-w-0">
-                                                            <p className="text-xs theme-text-muted truncate">{job.time || 'TBD'}</p>
-                                                            <p className="font-semibold theme-text truncate">{job.clientName || 'Client'}</p>
-                                                            <p className="text-xs theme-text-muted truncate">{job.type || 'Notary Service'}</p>
+                                                <div key={job.id} className={`relative pl-5 ${idx < todaysJobs.length - 1 ? 'pb-3' : ''}`}>
+                                                    {/* Timeline line */}
+                                                    {idx < todaysJobs.length - 1 && (
+                                                        <div className="absolute left-[5px] top-[14px] bottom-0 w-[2px]" style={{background: 'linear-gradient(to bottom, rgba(99,102,241,0.3), rgba(139,92,246,0.1))'}}></div>
+                                                    )}
+                                                    {/* Timeline dot */}
+                                                    <div className={`absolute left-0 top-[6px] w-[12px] h-[12px] rounded-full border-2 ${done ? 'bg-emerald-500 border-emerald-300' : 'bg-indigo-500 border-indigo-300'}`} style={{boxShadow: done ? '0 0 8px rgba(16,185,129,0.4)' : '0 0 8px rgba(99,102,241,0.4)'}}></div>
+
+                                                    <div className="glass-card rounded-xl p-3.5 ml-2">
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <div className="min-w-0">
+                                                                <p className="text-[11px] font-bold theme-text-muted">{job.time || 'TBD'}</p>
+                                                                <p className="font-bold theme-text truncate text-sm">{job.clientName || 'Client'}</p>
+                                                                <p className="text-[11px] theme-text-muted truncate">{job.type || 'Notary Service'}</p>
+                                                            </div>
+                                                            <div className="flex gap-1.5 flex-shrink-0">
+                                                                <button className="w-7 h-7 rounded-lg border theme-border theme-text-muted hover:text-indigo-600 hover:border-indigo-300 transition-colors"><i className="fas fa-map-marker-alt text-[10px]"></i></button>
+                                                                <button onClick={() => setView('schedule')} className="w-7 h-7 rounded-lg border theme-border theme-text-muted hover:text-indigo-600 hover:border-indigo-300 transition-colors"><i className="fas fa-pen text-[10px]"></i></button>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex gap-2 flex-shrink-0">
-                                                            <button className="w-7 h-7 rounded-lg border theme-border theme-text-muted"><i className="fas fa-map-marker-alt text-[11px]"></i></button>
-                                                            <button onClick={() => setView('schedule')} className="w-7 h-7 rounded-lg border theme-border theme-text-muted"><i className="fas fa-pen text-[11px]"></i></button>
-                                                        </div>
+                                                        {done && (
+                                                            <div className="mt-2 flex items-center gap-1.5">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                <span className="text-[10px] font-bold text-emerald-600">Completed</span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             );
@@ -3153,42 +3238,50 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                                 )}
                             </div>
 
-                            <div className="theme-surface theme-border border rounded-xl p-5 shadow-sm">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-bold theme-text">Action Items</h3>
-                                    <span className="text-xs theme-text-muted font-semibold">{actionItems.length} {actionItems.length === 1 ? 'item' : 'items'}</span>
+                            {/* Action Items */}
+                            <div className="anim-slide-right anim-delay-7 glass-card rounded-2xl p-5">
+                                <div className="flex items-center justify-between mb-5">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center">
+                                            <i className="fas fa-bolt text-white text-xs"></i>
+                                        </div>
+                                        <h3 className="font-extrabold theme-text tracking-tight">Actions</h3>
+                                    </div>
+                                    <span className="text-[11px] font-bold theme-text-muted px-2 py-0.5 rounded-full bg-slate-100">{actionItems.length}</span>
                                 </div>
                                 {actionItems.length === 0 ? (
-                                    <div className="rounded-xl border border-dashed theme-border p-5 text-center">
-                                        <i className="fas fa-check-circle text-3xl text-emerald-500 mb-2"></i>
-                                        <p className="font-semibold theme-text">All caught up!</p>
-                                        <p className="text-xs theme-text-muted mt-1">No urgent actions needed right now.</p>
+                                    <div className="rounded-xl border-2 border-dashed theme-border p-6 text-center">
+                                        <div className="w-12 h-12 mx-auto rounded-full bg-emerald-50 flex items-center justify-center mb-3">
+                                            <i className="fas fa-check-circle text-emerald-500 text-xl"></i>
+                                        </div>
+                                        <p className="font-bold theme-text text-sm">All caught up!</p>
+                                        <p className="text-xs theme-text-muted mt-1">No urgent actions needed.</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-3">
-                                        {actionItems.map(item => (
-                                            <button key={item.key} onClick={item.onClick} className="w-full text-left p-4 rounded-xl theme-surface-muted hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 border theme-border">
+                                    <div className="space-y-2.5">
+                                        {actionItems.map((item, idx) => (
+                                            <button key={item.key} onClick={item.onClick} className="action-item-card w-full text-left p-3.5 group">
                                                 <div className="flex items-start gap-3">
-                                                    <div className={`w-10 h-10 rounded-lg ${item.iconBg} flex items-center justify-center flex-shrink-0`}>
-                                                        <i className={`${item.icon} ${item.iconClass}`}></i>
+                                                    <div className={`w-9 h-9 rounded-xl ${item.iconBg} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}>
+                                                        <i className={`${item.icon} ${item.iconClass} text-sm`}></i>
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <p className="text-sm font-semibold theme-text truncate">{item.title}</p>
-                                                            {item.badge && (
-                                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wide flex-shrink-0 ${
-                                                                    item.badge === 'URGENT' ? 'bg-red-100 text-red-700' :
-                                                                    item.badge === 'SOON' ? 'bg-orange-100 text-orange-700' :
-                                                                    item.badge === 'WARNING' ? 'bg-amber-100 text-amber-700' :
-                                                                    item.badge === 'ACTION NEEDED' ? 'bg-red-100 text-red-700' :
-                                                                    item.badge === 'FOLLOW-UP' ? 'bg-amber-100 text-amber-700' :
-                                                                    'bg-blue-100 text-blue-700'
-                                                                }`}>{item.badge}</span>
-                                                            )}
+                                                        <div className="flex items-center gap-2 mb-0.5">
+                                                            <p className="text-sm font-bold theme-text truncate">{item.title}</p>
                                                         </div>
-                                                        <p className="text-xs theme-text-muted">{item.subtitle}</p>
+                                                        <p className="text-[11px] theme-text-muted">{item.subtitle}</p>
+                                                        {item.badge && (
+                                                            <span className={`mt-1.5 inline-flex px-2 py-0.5 rounded text-[9px] font-extrabold tracking-wider ${
+                                                                item.badge === 'URGENT' ? 'bg-red-100 text-red-700' :
+                                                                item.badge === 'ACTION NEEDED' ? 'bg-red-100 text-red-700' :
+                                                                item.badge === 'SOON' ? 'bg-orange-100 text-orange-700' :
+                                                                item.badge === 'WARNING' ? 'bg-amber-100 text-amber-700' :
+                                                                item.badge === 'FOLLOW-UP' ? 'bg-amber-100 text-amber-700' :
+                                                                'bg-blue-100 text-blue-700'
+                                                            }`}>{item.badge}</span>
+                                                        )}
                                                     </div>
-                                                    <i className="fas fa-chevron-right text-xs theme-text-muted self-center flex-shrink-0"></i>
+                                                    <i className="fas fa-chevron-right text-[10px] theme-text-muted self-center flex-shrink-0 group-hover:translate-x-0.5 transition-transform"></i>
                                                 </div>
                                             </button>
                                         ))}
@@ -3200,6 +3293,7 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                 </div>
             );
         };
+
 
         const AppointmentForm = ({ onSave, onCancel, initialData }) => {
             const [formData, setFormData] = useState({ clientName: '', date: '', time: '', fee: '', status: 'Scheduled', address: '', phone: '', email: '', type: '', notes: '' });
