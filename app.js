@@ -73,6 +73,15 @@
         };
 
 const showToast = (msg, type = 'success') => { if (window.addToastFn) window.addToastFn(msg, type); };
+const POSTHOG_KEY_STORAGE = 'notary_posthog_key';
+const track = (eventName, props = {}) => {
+    try {
+        if (window.posthog && typeof window.posthog.capture === 'function') {
+            window.posthog.capture(eventName, props || {});
+        }
+    } catch (e) {}
+};
+const TRIAL_DAYS = 14;
 
         const ToastContainer = () => {
             const [toasts, setToasts] = useState([]);
@@ -884,8 +893,6 @@ const SetupChecklistCard = ({ user, appointments, setView, onOpenSettings }) => 
             };
 
 
-            const [posthogKey, setPosthogKey] = useState(localStorage.getItem(POSTHOG_KEY_STORAGE) || "");
-
             const handleOpenBilling = () => {
                 if (typeof onOpenBillingPortal === 'function') return onOpenBillingPortal();
                 if (STRIPE_BILLING_PORTAL_URL) window.open(STRIPE_BILLING_PORTAL_URL, '_blank');
@@ -1470,8 +1477,7 @@ const SetupChecklistCard = ({ user, appointments, setView, onOpenSettings }) => 
                 <div className="min-h-screen landing-bg text-white font-inter flex flex-col relative overflow-x-hidden">
                     {infoContent && <InfoModal title={infoContent.title} content={infoContent.content} onClose={() => setInfoContent(null)} />}
                     <div className="w-full p-6 flex justify-between items-center z-20 container mx-auto">
-                        </div>
-                                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                             <i className="fas fa-file-signature text-xl text-teal-400"></i>
                             <h1 className="text-xl font-bold tracking-tight font-sans">NotaryOS</h1>
                         </div>
@@ -2147,14 +2153,30 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
             };
 
             const handleGoogleAuth = async () => {
+                setError('');
                 setIsLoading(true);
-                try { 
-                    const provider = new firebase.auth.GoogleAuthProvider(); 
-                    await firebase.auth().signInWithPopup(provider); 
-                } catch (err) { 
-                    setError(err.message); 
+                try {
+                    if (!window.firebase || !firebase.auth) {
+                        throw new Error('Google sign-in is not configured on this device.');
+                    }
+                    const provider = new firebase.auth.GoogleAuthProvider();
+                    const result = await firebase.auth().signInWithPopup(provider);
+                    const fbUser = result?.user || firebase.auth().currentUser;
+                    if (!fbUser) {
+                        throw new Error('Google sign-in did not return a user profile. Please try again.');
+                    }
+                    onAuth({
+                        id: fbUser.uid || 'google-user',
+                        name: fbUser.displayName || 'User',
+                        email: fbUser.email || formData.email || '',
+                        plan: 'free',
+                        role: 'solo'
+                    });
+                } catch (err) {
+                    setError(err?.message || 'Google sign-in failed. Please try again.');
+                } finally {
                     setIsLoading(false);
-                } 
+                }
             };
 
             return (
@@ -2415,7 +2437,7 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
             return (
                 <>
                     <div className={`fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden ${isOpen ? 'block' : 'hidden'}`} onClick={onClose}></div>
-                    <div className={`fixed inset-y-0 left-0 pb-safe px-safe overflow-y-auto bg-slate-950 text-white z-50 transform transition-all duration-300 ease-in-out lg:static lg:flex lg:flex-col border-r border-slate-800/60 ${isOpen ? 'translate-x-0' : '-translate-x-full'} ${isCollapsed ? 'w-20' : 'w-72'} lg:translate-x-0 shadow-2xl lg:shadow-none`}>
+                    <div className={`sidebar-shell fixed inset-y-0 left-0 pb-safe px-safe overflow-y-auto bg-slate-950 text-white z-50 transform transition-all duration-300 ease-in-out lg:static lg:flex lg:flex-col border-r border-slate-800/60 ${isOpen ? 'translate-x-0' : '-translate-x-full'} ${isCollapsed ? 'w-20' : 'w-72'} lg:translate-x-0 shadow-2xl lg:shadow-none`}>
                         <div className="px-6 py-5 flex justify-between items-center border-b border-slate-800/60 h-18">
                             {!isCollapsed && (
                                 <div className="flex items-center gap-2.5">
@@ -2432,7 +2454,7 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                             {menuItems.map(item => {
                                 const locked = !!item.access && !hasFeatureAccess({ plan: userPlan, role: userRole }, item.access);
                                 return (
-                                    <button key={item.id} onClick={() => { if (locked) { onLockedFeature(item.id); onClose(); } else { setView(item.id); onClose(); } }} className={`group w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-all duration-200 relative ${currentView === item.id ? 'bg-slate-800/80 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'} ${isCollapsed ? 'justify-center' : ''}`} title={locked ? `${item.label} (Upgrade required)` : item.label}>
+                                    <button key={item.id} onClick={() => { if (locked) { onLockedFeature(item.id); onClose(); } else { setView(item.id); onClose(); } }} className={`sidebar-item group w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-all duration-200 relative ${currentView === item.id ? 'sidebar-item--active bg-slate-800/80 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'} ${isCollapsed ? 'justify-center' : ''}`} title={locked ? `${item.label} (Upgrade required)` : item.label}>
                                             {currentView === item.id && !isCollapsed && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-indigo-500 rounded-r-full"></div>}
                                             <i className={`fas ${item.icon} text-base ${currentView === item.id ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'} transition-colors`}></i>
                                             {!isCollapsed && <span className="text-sm font-medium tracking-wide">{item.label}</span>}
@@ -2713,10 +2735,11 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                         datasets: [{
                             label: 'Revenue',
                             data: Object.values(monthlyData),
-                            borderColor: 'var(--accent-color)',
-                            backgroundColor: 'rgba(79, 70, 229, 0.08)',
+                            borderColor: '#4f46e5',
+                            backgroundColor: 'rgba(79, 70, 229, 0.10)',
                             pointRadius: 0,
-                            borderWidth: 3,
+                            pointHoverRadius: 3,
+                            borderWidth: 3.5,
                             fill: true,
                             tension: 0.4
                         }]
@@ -2726,8 +2749,8 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                         maintainAspectRatio: false,
                         plugins: { legend: { display: false }, tooltip: { intersect: false, mode: 'index' } },
                         scales: {
-                            y: { beginAtZero: true, grid: { display: false }, ticks: { color: '#94a3b8' } },
-                            x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                            y: { beginAtZero: true, grid: { color: 'rgba(148,163,184,0.18)', drawBorder: false }, ticks: { color: '#64748b' } },
+                            x: { grid: { display: false, drawBorder: false }, ticks: { color: '#64748b' } }
                         }
                     }
                 });
@@ -2835,17 +2858,17 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                         <div className="xl:col-span-2 space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
+                                <div className="card card--primary theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
                                     <p className="theme-text-muted text-xs font-semibold uppercase tracking-wide mb-2">Revenue (YTD)</p>
                                     <p className="text-3xl font-bold theme-text truncate">${ytdRevenue.toLocaleString()}</p>
                                     <p className="text-emerald-600 text-xs mt-2 font-semibold"><i className="fas fa-arrow-trend-up mr-1"></i>+12.5% vs last month</p>
                                 </div>
-                                <div className="theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
+                                <div className="card card--secondary theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
                                     <p className="theme-text-muted text-xs font-semibold uppercase tracking-wide mb-2">Upcoming Signings</p>
                                     <p className="text-3xl font-bold theme-text">{scheduled.length}</p>
                                     <p className="theme-text-muted text-xs mt-2 truncate">{nextScheduled ? `Next: ${nextScheduled.clientName || 'Client'} • ${nextScheduled.dt.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : 'No upcoming appointments'}</p>
                                 </div>
-                                <button onClick={() => setView('credentials')} className="text-left theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
+                                <button onClick={() => setView('credentials')} className="card card--primary text-left theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
                                     <p className="theme-text-muted text-xs font-semibold uppercase tracking-wide mb-2">Compliance Status</p>
                                     <p className={`text-2xl font-bold truncate ${complianceState === 'clear' ? 'text-emerald-600' : complianceState === 'warning' ? 'text-amber-600' : 'text-red-600'}`}>
                                         {complianceState === 'clear' ? 'All Clear' : complianceState === 'warning' ? 'Attention Needed' : 'Critical'}
@@ -2906,7 +2929,7 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                         </div>
 
                         <div className="xl:col-span-1 space-y-6">
-                            <div className="theme-surface theme-border border rounded-xl p-5 shadow-sm">
+                            <div className="card card--primary theme-surface theme-border border rounded-xl p-5 shadow-sm">
                                 <div className="flex items-center justify-between mb-4">
                                     <h3 className="text-lg font-bold theme-text">Today's Agenda</h3>
                                     <button onClick={() => setView('schedule')} className="text-xs font-semibold theme-text-muted">View all</button>
@@ -3831,8 +3854,7 @@ return (
                         expenses.length === 0 ? (
                             <EmptyState icon="fa-receipt" title="No expenses logged yet" description="Track your write-offs here." actionLabel="Add Expense" onAction={() => setShowExpenseModal(true)} colorClass="theme-text" bgClass="theme-surface-muted" />
                         ) : (
-                            
-                            {expenses.length > 0 && (
+                            <>
                                 <div className="card card-tight" style={{marginBottom:12}}>
                                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, flexWrap:'wrap'}}>
                                         <div className="theme-text" style={{fontWeight:900}}>
@@ -3851,9 +3873,8 @@ return (
                                         </div>
                                     </div>
                                 </div>
-                            )}
 
-                            <div className="theme-surface theme-border border rounded-2xl divide-y theme-border">
+                                <div className="theme-surface theme-border border rounded-2xl divide-y theme-border">
                                 {expenses.map(item => (
                                     <div key={item.id} className="p-4 flex items-center justify-between gap-3 hover:theme-surface-muted transition-all duration-200">
                                         <div className="flex items-center gap-3">
@@ -3863,6 +3884,7 @@ return (
                                             <p className="font-semibold theme-text truncate"><i className={`fas ${categoryIcon(item.category)} mr-2`}></i>{item.category || 'General'}</p>
                                             <p className="text-sm theme-text-muted truncate">{item.desc || 'No description'}</p>
                                         </div>
+                                    </div>
                                         <div className="flex items-center gap-2 flex-shrink-0">
                                             <p className="font-bold" style={{ color: '#dc2626' }}>-${parseFloat(item.amount || 0).toFixed(2)}</p>
                                             <button onClick={() => startEditExpense(item)} className="theme-icon-btn" title="Edit"><i className="fas fa-pen"></i></button>
@@ -3871,6 +3893,7 @@ return (
                                     </div>
                                 ))}
                             </div>
+                            </>
                         )
                     ) : (
                         mileage.length === 0 ? (
