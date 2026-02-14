@@ -73,14 +73,6 @@
         };
 
 const showToast = (msg, type = 'success') => { if (window.addToastFn) window.addToastFn(msg, type); };
-const POSTHOG_KEY_STORAGE = 'notary_posthog_key';
-const track = (eventName, props = {}) => {
-    try {
-        if (window.posthog && typeof window.posthog.capture === 'function') {
-            window.posthog.capture(eventName, props || {});
-        }
-    } catch (e) {}
-};
 const TRIAL_DAYS = 14;
 
         const ToastContainer = () => {
@@ -2882,30 +2874,9 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                         ))}
                     </div>
 
-                    <div className="daily-brief card card--secondary theme-surface theme-border border rounded-xl p-5 shadow-sm">
-                        <div className="flex items-center justify-between gap-3 mb-3">
-                            <h3 className="text-sm font-semibold uppercase tracking-wide theme-text-muted">Daily Brief</h3>
-                            <span className="text-xs theme-text-muted">Operational Snapshot</span>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div className="brief-metric rounded-xl p-3 theme-surface-muted">
-                                <p className="text-xs uppercase tracking-wide theme-text-muted">Today's Jobs</p>
-                                <p className="text-2xl font-bold theme-text mt-1">{dailyBrief.jobsToday}</p>
-                            </div>
-                            <div className="brief-metric rounded-xl p-3 theme-surface-muted">
-                                <p className="text-xs uppercase tracking-wide theme-text-muted">Potential Revenue</p>
-                                <p className="text-2xl font-bold theme-text mt-1">${dailyBrief.potentialRevenue.toLocaleString()}</p>
-                            </div>
-                            <div className="brief-metric rounded-xl p-3 theme-surface-muted">
-                                <p className="text-xs uppercase tracking-wide theme-text-muted">Open Risks</p>
-                                <p className={`text-2xl font-bold mt-1 ${dailyBrief.openRisks > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{dailyBrief.openRisks}</p>
-                            </div>
-                        </div>
-                    </div>
-
                     <div className="dashboard-flow grid grid-cols-1 xl:grid-cols-3 gap-6">
                         <div className="xl:col-span-2 space-y-6">
-                            <div className="kpi-grid grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="card card--primary theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
                                     <p className="theme-text-muted text-xs font-semibold uppercase tracking-wide mb-2">Revenue (YTD)</p>
                                     <p className="text-3xl font-bold theme-text truncate">${ytdRevenue.toLocaleString()}</p>
@@ -2976,7 +2947,7 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                             </div>
                         </div>
 
-                        <div className="right-rail xl:col-span-1 space-y-6">
+                        <div className="xl:col-span-1 space-y-6">
                             <div className="card card--primary theme-surface theme-border border rounded-xl p-5 shadow-sm">
                                 <div className="flex items-center justify-between mb-4">
                                     <h3 className="text-lg font-bold theme-text">Today's Agenda</h3>
