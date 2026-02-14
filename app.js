@@ -885,6 +885,8 @@ const SetupChecklistCard = ({ user, appointments, setView, onOpenSettings }) => 
             };
 
 
+            const [posthogKey, setPosthogKey] = useState(localStorage.getItem(POSTHOG_KEY_STORAGE) || "");
+
             const handleOpenBilling = () => {
                 if (typeof onOpenBillingPortal === 'function') return onOpenBillingPortal();
                 if (STRIPE_BILLING_PORTAL_URL) window.open(STRIPE_BILLING_PORTAL_URL, '_blank');
