@@ -2808,26 +2808,57 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                 openRisks: (urgentCred ? 1 : 0) + (unpaidInvoices > 0 ? 1 : 0)
             };
 
+            // Enhanced Action Queue with Priority System (0-100)
+            // Priority Levels: 100=Critical, 90=High, 70=Medium-High, 50=Medium, 30=Low, 20=Very Low
+            const appointmentsNeedingFollowup = safeAppointments.filter(a => a.status === 'Completed' && !a.followupDone).length;
+            const missingClientInfo = safeAppointments.filter(a => !a.phone || !a.email).length;
+            
             const actionItems = [
                 {
                     key: 'credentials',
-                    priority: urgentCred ? (urgentCred.daysLeft <= 30 ? 100 : 70) : 20,
+                    priority: urgentCred ? (urgentCred.daysLeft <= 30 ? 100 : urgentCred.daysLeft <= 45 ? 85 : 70) : 20,
                     onClick: () => setView('credentials'),
-                    icon: 'fas fa-triangle-exclamation',
-                    iconClass: urgentCred ? (urgentCred.daysLeft <= 30 ? 'text-red-500' : 'text-amber-500') : 'text-emerald-500',
-                    title: urgentCred ? `${urgentCred.name || 'Credential'} expires in ${urgentCred.daysLeft} days` : 'Credentials healthy',
-                    subtitle: 'Open Credentials'
+                    icon: urgentCred ? 'fas fa-triangle-exclamation' : 'fas fa-shield-check',
+                    iconClass: urgentCred ? (urgentCred.daysLeft <= 30 ? 'text-red-600' : urgentCred.daysLeft <= 45 ? 'text-orange-600' : 'text-amber-600') : 'text-emerald-600',
+                    iconBg: urgentCred ? (urgentCred.daysLeft <= 30 ? 'bg-red-50' : urgentCred.daysLeft <= 45 ? 'bg-orange-50' : 'bg-amber-50') : 'bg-emerald-50',
+                    title: urgentCred ? `${urgentCred.name || 'Credential'} expires in ${urgentCred.daysLeft} days` : 'All credentials valid',
+                    subtitle: urgentCred ? 'Renew now to avoid service disruption' : 'Compliance status healthy',
+                    badge: urgentCred ? (urgentCred.daysLeft <= 30 ? 'URGENT' : urgentCred.daysLeft <= 45 ? 'SOON' : 'WARNING') : null
                 },
                 {
                     key: 'finances',
                     priority: unpaidInvoices > 0 ? 90 : 30,
                     onClick: () => setView('finances'),
-                    icon: 'fas fa-file-invoice-dollar',
-                    iconClass: unpaidInvoices > 0 ? 'text-red-500' : 'text-emerald-500',
-                    title: `${unpaidInvoices} invoice${unpaidInvoices === 1 ? '' : 's'} unpaid`,
-                    subtitle: 'Review Finances'
+                    icon: unpaidInvoices > 0 ? 'fas fa-file-invoice-dollar' : 'fas fa-check-circle',
+                    iconClass: unpaidInvoices > 0 ? 'text-red-600' : 'text-emerald-600',
+                    iconBg: unpaidInvoices > 0 ? 'bg-red-50' : 'bg-emerald-50',
+                    title: unpaidInvoices > 0 ? `${unpaidInvoices} invoice${unpaidInvoices === 1 ? '' : 's'} unpaid` : 'All invoices paid',
+                    subtitle: unpaidInvoices > 0 ? 'Follow up on outstanding payments' : 'Revenue collection on track',
+                    badge: unpaidInvoices > 0 ? 'ACTION NEEDED' : null
+                },
+                {
+                    key: 'followup',
+                    priority: appointmentsNeedingFollowup > 0 ? 60 : 10,
+                    onClick: () => setView('schedule'),
+                    icon: appointmentsNeedingFollowup > 0 ? 'fas fa-user-clock' : 'fas fa-check-double',
+                    iconClass: appointmentsNeedingFollowup > 0 ? 'text-amber-600' : 'text-slate-400',
+                    iconBg: appointmentsNeedingFollowup > 0 ? 'bg-amber-50' : 'bg-slate-50',
+                    title: appointmentsNeedingFollowup > 0 ? `${appointmentsNeedingFollowup} client${appointmentsNeedingFollowup === 1 ? '' : 's'} need follow-up` : 'All follow-ups complete',
+                    subtitle: appointmentsNeedingFollowup > 0 ? 'Send thank you or request review' : 'Client relations current',
+                    badge: appointmentsNeedingFollowup > 0 ? 'FOLLOW-UP' : null
+                },
+                {
+                    key: 'clientinfo',
+                    priority: missingClientInfo > 0 ? 50 : 10,
+                    onClick: () => setView('schedule'),
+                    icon: missingClientInfo > 0 ? 'fas fa-address-card' : 'fas fa-users',
+                    iconClass: missingClientInfo > 0 ? 'text-blue-600' : 'text-slate-400',
+                    iconBg: missingClientInfo > 0 ? 'bg-blue-50' : 'bg-slate-50',
+                    title: missingClientInfo > 0 ? `${missingClientInfo} appointment${missingClientInfo === 1 ? '' : 's'} missing contact info` : 'All client records complete',
+                    subtitle: missingClientInfo > 0 ? 'Complete records for better service' : 'Client database up to date',
+                    badge: missingClientInfo > 0 ? 'INCOMPLETE' : null
                 }
-            ].sort((a, b) => b.priority - a.priority);
+            ].sort((a, b) => b.priority - a.priority).filter(item => item.priority >= 40 || item.badge !== null);
 
             return (
                 <div className="p-6 pb-24 space-y-6 font-sans">
@@ -2862,6 +2893,73 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
 
                     </div>
 
+                    {/* Daily Brief Summary Card */}
+                    <div className="theme-surface theme-border border rounded-xl p-5 shadow-md overflow-hidden" style={{background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%)'}}>
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center">
+                                    <i className="fas fa-calendar-day text-white"></i>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold theme-text">Daily Brief</h3>
+                                    <p className="text-xs theme-text-muted">{dateLabel}</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setView('schedule')} className="text-xs font-semibold text-blue-600 hover:text-blue-700">
+                                View Schedule <i className="fas fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <button onClick={() => setView('schedule')} className="text-left p-4 rounded-xl bg-white/50 hover:bg-white/80 theme-border border transition-all duration-200 hover:-translate-y-0.5">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                                        <i className="fas fa-briefcase text-blue-600 text-sm"></i>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-2xl font-bold text-blue-600">{dailyBrief.jobsToday}</p>
+                                        <p className="text-xs theme-text-muted truncate">Jobs Today</p>
+                                    </div>
+                                </div>
+                                {dailyBrief.jobsToday > 0 && nextScheduled && (
+                                    <p className="text-xs theme-text-muted truncate">
+                                        <i className="fas fa-clock mr-1"></i>
+                                        Next: {nextScheduled.time || 'TBD'}
+                                    </p>
+                                )}
+                            </button>
+                            <button onClick={() => setView('finances')} className="text-left p-4 rounded-xl bg-white/50 hover:bg-white/80 theme-border border transition-all duration-200 hover:-translate-y-0.5">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                                        <i className="fas fa-coins text-emerald-600 text-sm"></i>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-2xl font-bold text-emerald-600">${dailyBrief.potentialRevenue.toLocaleString()}</p>
+                                        <p className="text-xs theme-text-muted truncate">Potential Revenue</p>
+                                    </div>
+                                </div>
+                                <p className="text-xs theme-text-muted">
+                                    <i className="fas fa-chart-line mr-1"></i>
+                                    From today's jobs
+                                </p>
+                            </button>
+                            <button onClick={() => dailyBrief.openRisks > 0 ? setView('credentials') : null} className="text-left p-4 rounded-xl bg-white/50 hover:bg-white/80 theme-border border transition-all duration-200 hover:-translate-y-0.5">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${dailyBrief.openRisks > 0 ? 'bg-amber-50' : 'bg-emerald-50'}`}>
+                                        <i className={`fas ${dailyBrief.openRisks > 0 ? 'fa-exclamation-triangle' : 'fa-shield-check'} text-sm ${dailyBrief.openRisks > 0 ? 'text-amber-600' : 'text-emerald-600'}`}></i>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className={`text-2xl font-bold ${dailyBrief.openRisks > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{dailyBrief.openRisks}</p>
+                                        <p className="text-xs theme-text-muted truncate">Open Risks</p>
+                                    </div>
+                                </div>
+                                <p className="text-xs theme-text-muted">
+                                    <i className={`fas ${dailyBrief.openRisks > 0 ? 'fa-bell' : 'fa-check'} mr-1`}></i>
+                                    {dailyBrief.openRisks > 0 ? 'Needs attention' : 'All clear'}
+                                </p>
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                         {quickActions.map(action => (
                             <button
@@ -2877,18 +2975,36 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                     <div className="dashboard-flow grid grid-cols-1 xl:grid-cols-3 gap-6">
                         <div className="xl:col-span-2 space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="card card--primary theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
-                                    <p className="theme-text-muted text-xs font-semibold uppercase tracking-wide mb-2">Revenue (YTD)</p>
-                                    <p className="text-3xl font-bold theme-text truncate">${ytdRevenue.toLocaleString()}</p>
+                                {/* KPI Card 1: Revenue (YTD) - Semantic Color: Emerald (Success) */}
+                                <div className="kpi-card theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <p className="theme-text-muted text-xs font-semibold uppercase tracking-wide">Revenue (YTD)</p>
+                                        <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                                            <i className="fas fa-dollar-sign text-emerald-600 text-sm"></i>
+                                        </div>
+                                    </div>
+                                    <p className="text-3xl font-bold text-emerald-600 truncate">${ytdRevenue.toLocaleString()}</p>
                                     <p className="text-emerald-600 text-xs mt-2 font-semibold"><i className="fas fa-arrow-trend-up mr-1"></i>+12.5% vs last month</p>
                                 </div>
-                                <div className="card card--secondary theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
-                                    <p className="theme-text-muted text-xs font-semibold uppercase tracking-wide mb-2">Upcoming Signings</p>
-                                    <p className="text-3xl font-bold theme-text">{scheduled.length}</p>
+                                {/* KPI Card 2: Upcoming Signings - Semantic Color: Blue (Informational) */}
+                                <div className="kpi-card theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <p className="theme-text-muted text-xs font-semibold uppercase tracking-wide">Upcoming Signings</p>
+                                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                                            <i className="fas fa-calendar-check text-blue-600 text-sm"></i>
+                                        </div>
+                                    </div>
+                                    <p className="text-3xl font-bold text-blue-600">{scheduled.length}</p>
                                     <p className="theme-text-muted text-xs mt-2 truncate">{nextScheduled ? `Next: ${nextScheduled.clientName || 'Client'} • ${nextScheduled.dt.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : 'No upcoming appointments'}</p>
                                 </div>
-                                <button onClick={() => setView('credentials')} className="card card--primary text-left theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
-                                    <p className="theme-text-muted text-xs font-semibold uppercase tracking-wide mb-2">Compliance Status</p>
+                                {/* KPI Card 3: Compliance Status - Semantic Color: Dynamic (Clear/Warning/Critical) */}
+                                <button onClick={() => setView('credentials')} className="kpi-card text-left theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <p className="theme-text-muted text-xs font-semibold uppercase tracking-wide">Compliance Status</p>
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${complianceState === 'clear' ? 'bg-emerald-50' : complianceState === 'warning' ? 'bg-amber-50' : 'bg-red-50'}`}>
+                                            <i className={`fas ${complianceState === 'clear' ? 'fa-shield-check' : 'fa-triangle-exclamation'} text-sm ${complianceState === 'clear' ? 'text-emerald-600' : complianceState === 'warning' ? 'text-amber-600' : 'text-red-600'}`}></i>
+                                        </div>
+                                    </div>
                                     <p className={`text-2xl font-bold truncate ${complianceState === 'clear' ? 'text-emerald-600' : complianceState === 'warning' ? 'text-amber-600' : 'text-red-600'}`}>
                                         {complianceState === 'clear' ? 'All Clear' : complianceState === 'warning' ? 'Attention Needed' : 'Critical'}
                                     </p>
@@ -2984,15 +3100,46 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                             </div>
 
                             <div className="theme-surface theme-border border rounded-xl p-5 shadow-sm">
-                                <h3 className="text-lg font-bold theme-text mb-4">Action Items</h3>
-                                <div className="space-y-3">
-                                    {actionItems.map(item => (
-                                        <button key={item.key} onClick={item.onClick} className="w-full text-left p-3 rounded-xl theme-surface-muted hover:-translate-y-0.5 transition-all duration-200">
-                                            <p className="text-sm font-semibold theme-text truncate"><i className={`${item.icon} ${item.iconClass} mr-2`}></i>{item.title}</p>
-                                            <p className="text-xs theme-text-muted mt-1">{item.subtitle}</p>
-                                        </button>
-                                    ))}
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold theme-text">Action Items</h3>
+                                    <span className="text-xs theme-text-muted font-semibold">{actionItems.length} {actionItems.length === 1 ? 'item' : 'items'}</span>
                                 </div>
+                                {actionItems.length === 0 ? (
+                                    <div className="rounded-xl border border-dashed theme-border p-5 text-center">
+                                        <i className="fas fa-check-circle text-3xl text-emerald-500 mb-2"></i>
+                                        <p className="font-semibold theme-text">All caught up!</p>
+                                        <p className="text-xs theme-text-muted mt-1">No urgent actions needed right now.</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {actionItems.map(item => (
+                                            <button key={item.key} onClick={item.onClick} className="w-full text-left p-4 rounded-xl theme-surface-muted hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 border theme-border">
+                                                <div className="flex items-start gap-3">
+                                                    <div className={`w-10 h-10 rounded-lg ${item.iconBg} flex items-center justify-center flex-shrink-0`}>
+                                                        <i className={`${item.icon} ${item.iconClass}`}></i>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <p className="text-sm font-semibold theme-text truncate">{item.title}</p>
+                                                            {item.badge && (
+                                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wide flex-shrink-0 ${
+                                                                    item.badge === 'URGENT' ? 'bg-red-100 text-red-700' :
+                                                                    item.badge === 'SOON' ? 'bg-orange-100 text-orange-700' :
+                                                                    item.badge === 'WARNING' ? 'bg-amber-100 text-amber-700' :
+                                                                    item.badge === 'ACTION NEEDED' ? 'bg-red-100 text-red-700' :
+                                                                    item.badge === 'FOLLOW-UP' ? 'bg-amber-100 text-amber-700' :
+                                                                    'bg-blue-100 text-blue-700'
+                                                                }`}>{item.badge}</span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs theme-text-muted">{item.subtitle}</p>
+                                                    </div>
+                                                    <i className="fas fa-chevron-right text-xs theme-text-muted self-center flex-shrink-0"></i>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
