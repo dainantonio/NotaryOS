@@ -55,19 +55,21 @@
         // --- TOAST CONTEXT ---
         window.addToastFn = null;
         
-        const EmptyStateCard = ({ title, description, ctaLabel, onCta, icon='fas fa-circle-plus', hint }) => {
-            return (
-                <div className="empty-state">
-                    <h4 className="theme-text"><i className={icon} style={{marginRight:10, opacity:.9}}></i>{title}</h4>
-                    <p className="theme-text">{description}</p>
-                    <div className="cta-row">
-                        <button className="btn btn-primary" style={{height:40}} onClick={onCta}>
-                            {ctaLabel}
-                        </button>
-                        {hint ? <div className="hint theme-text">{hint}</div> : null}
-                    </div>
-                </div>
-            );
+        const useIsDesktop = () => {
+            const [isDesktop, setIsDesktop] = React.useState(() => window.innerWidth >= 1024);
+            React.useEffect(() => {
+                const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+                window.addEventListener('resize', onResize);
+                return () => window.removeEventListener('resize', onResize);
+            }, []);
+            return isDesktop;
+        };
+
+        const getWorkspaceMode = () => {
+            try{ return localStorage.getItem('notary_workspace_mode') === 'true'; }catch(e){ return false; }
+        };
+        const setWorkspaceMode = (val) => {
+            try{ localStorage.setItem('notary_workspace_mode', val ? 'true' : 'false'); }catch(e){}
         };
 
 const showToast = (msg, type = 'success') => { if (window.addToastFn) window.addToastFn(msg, type); };
@@ -966,6 +968,20 @@ const SetupChecklistCard = ({ user, appointments, setView, onOpenSettings }) => 
                                         <option value="classic">Classic</option>
                                         <option value="midnight">Midnight</option>
                                     </select>
+                        <div className="mt-4">
+                            <div className="font-bold theme-text mb-1">Workspace Mode (Desktop Beta)</div>
+                            <div className="theme-text-muted mb-2" style={{fontSize:13}}>Enable an OS-style desktop workspace with draggable windows + taskbar.</div>
+                            <label style={{display:'flex', alignItems:'center', gap:10}}>
+                                <input type="checkbox" defaultChecked={getWorkspaceMode()} onChange={(e)=>{ setWorkspaceMode(e.target.checked); showToast(e.target.checked ? 'Workspace Mode enabled (reload to apply)' : 'Workspace Mode disabled (reload to apply)'); }} />
+                                <span className="theme-text">Enable Workspace Mode</span>
+                            </label>
+                            <div className="mt-2">
+                                <button className="btn btn-secondary" style={{height:36}} onClick={()=>window.location.reload()}>
+                                    Reload Now
+                                </button>
+                            </div>
+                        </div>
+
                                 </div>
 </div>
                             </div>
@@ -4260,7 +4276,238 @@ return (
             );
         };
 
-        const App = () => {
+        
+        const WorkspaceShell = ({ user, setUser, theme, setTheme, onLogout }) => {
+            const isDesktop = useIsDesktop();
+            const [windows, setWindows] = React.useState(() => ([
+                { id: 'win_dashboard', appKey:'dashboard', title:'Dashboard', minimized:false, x: 80, y: 80, w: 860, h: 560, z: 10 },
+            ]));
+            const [activeId, setActiveId] = React.useState('win_dashboard');
+            const nextZ = React.useRef(20);
+
+            const bringToFront = (id) => {
+                setWindows(prev => prev.map(w => w.id===id ? ({...w, minimized:false, z: (nextZ.current+=1)}) : w));
+                setActiveId(id);
+            };
+            const minimize = (id) => setWindows(prev => prev.map(w => w.id===id ? ({...w, minimized:true}) : w));
+            const closeWin = (id) => {
+                setWindows(prev => prev.filter(w => w.id !== id));
+                setActiveId(prev => (prev===id ? null : prev));
+            };
+
+            const openApp = (appKey) => {
+                setWindows(prev => {
+                    const existing = prev.find(w => w.appKey===appKey);
+                    if(existing){ setTimeout(()=>bringToFront(existing.id), 0); return prev; }
+                    const titleMap = {
+                        dashboard:'Dashboard', schedule:'Schedule', clients:'Clients', journal:'eJournal',
+                        finances:'Finances', credentials:'Credentials', training:'Training', settings:'Settings'
+                    };
+                    const id = `win_${appKey}`;
+                    const start = { id, appKey, title: titleMap[appKey]||appKey, minimized:false, x: 110, y: 90, w: 900, h: 600, z: (nextZ.current+=1) };
+                    setTimeout(()=>setActiveId(id), 0);
+                    return prev.concat(start);
+                });
+            };
+
+            const snapWithinBounds = (x,y,w,h) => {
+                const pad = 12;
+                const maxW = window.innerWidth - pad;
+                const maxH = window.innerHeight - 64 - pad;
+                return {
+                    x: Math.max(pad, Math.min(x, maxW - w)),
+                    y: Math.max(pad, Math.min(y, maxH - h)),
+                };
+            };
+
+            const startDrag = (e, id) => {
+                e.preventDefault();
+                bringToFront(id);
+                const win = windows.find(w=>w.id===id);
+                if(!win) return;
+                const startX = e.clientX, startY = e.clientY;
+                const origX = win.x, origY = win.y;
+
+                const onMove = (ev) => {
+                    const dx = ev.clientX - startX;
+                    const dy = ev.clientY - startY;
+                    setWindows(prev => prev.map(w=>{
+                        if(w.id!==id) return w;
+                        const pos = snapWithinBounds(origX+dx, origY+dy, w.w, w.h);
+                        return { ...w, x: pos.x, y: pos.y };
+                    }));
+                };
+                const onUp = () => {
+                    window.removeEventListener('mousemove', onMove);
+                    window.removeEventListener('mouseup', onUp);
+                };
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
+            };
+
+            const renderApp = (appKey) => {
+                switch(appKey){
+                    case 'dashboard': return <Dashboard user={user} />;
+                    case 'schedule': return <Schedule user={user} />;
+                    case 'clients': return <Clients user={user} />;
+                    case 'journal': return <Journal user={user} />;
+                    case 'finances': return <Finances user={user} />;
+                    case 'credentials': return <Credentials user={user} />;
+                    case 'training': return <TrainingHub user={user} />;
+                    case 'settings': return <WorkspaceSettings user={user} setUser={setUser} theme={theme} setTheme={setTheme} onLogout={onLogout} />;
+                    default: return <Dashboard user={user} />;
+                }
+            };
+
+            if(!isDesktop){
+                return (
+                    <div className="p-4">
+                        <div className="card">
+                            <div className="font-bold text-lg mb-1 theme-text">Workspace Mode is desktop-only</div>
+                            <div className="theme-text-muted mb-3">On mobile, we use the native layout.</div>
+                            <button className="btn btn-primary" onClick={() => { setWorkspaceMode(false); window.location.reload(); }}>Exit Workspace</button>
+                        </div>
+                    </div>
+                );
+            }
+
+            const icons = [
+                { key:'dashboard', label:'Dashboard', icon:'fas fa-chart-line' },
+                { key:'schedule', label:'Schedule', icon:'fas fa-calendar' },
+                { key:'clients', label:'Clients', icon:'fas fa-users' },
+                { key:'journal', label:'eJournal', icon:'fas fa-book' },
+                { key:'finances', label:'Finances', icon:'fas fa-receipt' },
+                { key:'credentials', label:'Credentials', icon:'fas fa-shield-halved' },
+                { key:'training', label:'Training', icon:'fas fa-graduation-cap' },
+                { key:'settings', label:'Settings', icon:'fas fa-gear' },
+            ];
+
+            return (
+                <div style={{minHeight:'100vh'}} className="theme-app-bg theme-text">
+                    <div style={{position:'fixed', inset:0,
+                        background:'radial-gradient(1200px 800px at 20% 10%, rgba(99,102,241,.18), transparent 60%), radial-gradient(900px 700px at 90% 80%, rgba(124,58,237,.16), transparent 55%), radial-gradient(700px 500px at 50% 60%, rgba(14,165,233,.10), transparent 60%)'
+                    }} />
+                    <div style={{position:'relative', padding:24, paddingBottom:84}}>
+                        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(120px, 1fr))', gap:16, maxWidth:760}}>
+                            {icons.map(ic => (
+                                <button key={ic.key} onClick={() => openApp(ic.key)}
+                                    className="card"
+                                    style={{textAlign:'left', cursor:'pointer', padding:14, borderRadius:18, background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)'}}>
+                                    <div style={{display:'flex', alignItems:'center', gap:10}}>
+                                        <div style={{width:38, height:38, borderRadius:14, display:'grid', placeItems:'center', background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.10)'}}>
+                                            <i className={ic.icon}></i>
+                                        </div>
+                                        <div style={{fontWeight:900}}>{ic.label}</div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+
+                        {windows.filter(w=>!w.minimized).sort((a,b)=>a.z-b.z).map(win => (
+                            <div key={win.id} onMouseDown={() => bringToFront(win.id)}
+                                style={{
+                                    position:'absolute', left: win.x, top: win.y, width: win.w, height: win.h,
+                                    borderRadius: 20, background:'rgba(15, 23, 42, .72)',
+                                    border:'1px solid rgba(255,255,255,.10)', boxShadow:'0 18px 60px rgba(0,0,0,.45)',
+                                    overflow:'hidden', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', zIndex: win.z
+                                }}>
+                                <div onMouseDown={(e)=>startDrag(e, win.id)}
+                                    style={{
+                                        height:44, display:'flex', alignItems:'center', justifyContent:'space-between',
+                                        padding:'0 12px', borderBottom:'1px solid rgba(255,255,255,.10)',
+                                        background:'rgba(255,255,255,.04)', cursor:'grab'
+                                    }}>
+                                    <div style={{display:'flex', alignItems:'center', gap:10, fontWeight:900}}>
+                                        <span style={{width:10,height:10,borderRadius:999, background: win.id===activeId ? 'rgba(99,102,241,.95)' : 'rgba(255,255,255,.25)'}} />
+                                        {win.title}
+                                    </div>
+                                    <div style={{display:'flex', gap:8}}>
+                                        <button className="btn btn-secondary" style={{height:30, padding:'0 10px'}} onClick={(e)=>{ e.stopPropagation(); minimize(win.id); }}>
+                                            <i className="fas fa-window-minimize"></i>
+                                        </button>
+                                        <button className="btn btn-secondary" style={{height:30, padding:'0 10px'}} onClick={(e)=>{ e.stopPropagation(); closeWin(win.id); }}>
+                                            <i className="fas fa-xmark"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div style={{height:'calc(100% - 44px)', overflow:'auto'}}>
+                                    <div style={{padding:14}}>
+                                        {renderApp(win.appKey)}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div style={{
+                        position:'fixed', left:16, right:16, bottom:16, height:56, borderRadius: 20,
+                        background:'rgba(15, 23, 42, .80)', border:'1px solid rgba(255,255,255,.10)',
+                        boxShadow:'0 12px 40px rgba(0,0,0,.45)', display:'flex', alignItems:'center', justifyContent:'space-between',
+                        padding:'0 12px', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', zIndex: 99999
+                    }}>
+                        <div style={{display:'flex', alignItems:'center', gap:10, flexWrap:'wrap', overflow:'hidden'}}>
+                            <button className="btn btn-secondary" style={{height:36}} onClick={() => openApp('dashboard')}>
+                                <i className="fas fa-layer-group mr-2"></i>Apps
+                            </button>
+                            {windows.map(w => (
+                                <button key={w.id}
+                                    className={w.id===activeId ? "btn btn-primary" : "btn btn-secondary"}
+                                    style={{height:36, maxWidth:220}}
+                                    onClick={() => bringToFront(w.id)}>
+                                    {w.title}
+                                </button>
+                            ))}
+                        </div>
+                        <div style={{display:'flex', alignItems:'center', gap:10}}>
+                            <div className="theme-text-muted" style={{fontSize:12, fontWeight:800}}>
+                                {user?.plan === 'pro' ? 'PRO' : 'TRIAL'} • Workspace
+                            </div>
+                            <button className="btn btn-secondary" style={{height:36}} onClick={() => { setWorkspaceMode(false); window.location.reload(); }}>
+                                Exit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const WorkspaceSettings = ({ user, setUser, theme, setTheme, onLogout }) => {
+            return (
+                <div className="card">
+                    <div className="font-bold text-lg theme-text mb-2">Settings</div>
+                    <div className="theme-text-muted mb-3">Workspace Mode uses the same data and storage as the mobile layout.</div>
+
+                    <div className="grid md:grid-cols-2 gap-3">
+                        <div className="card card-tight">
+                            <div className="font-bold theme-text mb-1">Theme</div>
+                            <select className="w-full px-3 py-2.5 rounded-lg border theme-border theme-app-bg theme-text"
+                                value={theme}
+                                onChange={(e)=>setTheme(e.target.value)}>
+                                <option value="midnight">Midnight</option>
+                                <option value="classic">Classic</option>
+                                <option value="slate">Slate</option>
+                                <option value="light">Light</option>
+                            </select>
+                        </div>
+                        <div className="card card-tight">
+                            <div className="font-bold theme-text mb-1">Workspace Mode</div>
+                            <div className="theme-text-muted" style={{fontSize:13}}>Enabled (Desktop Beta)</div>
+                            <button className="btn btn-secondary mt-2" onClick={() => { setWorkspaceMode(false); window.location.reload(); }}>
+                                Disable Workspace Mode
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 flex gap-2 flex-wrap">
+                        <button className="btn btn-secondary" onClick={onLogout}>
+                            <i className="fas fa-right-from-bracket mr-2"></i>Log Out
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+const App = () => {
             const [user, setUser] = useState(() => safeParse(safeStorageGet('notary_user_profile', null), null));
 
             // Ensure trialEndsAt exists for free users (first run)
