@@ -73,6 +73,15 @@
         };
 
 const showToast = (msg, type = 'success') => { if (window.addToastFn) window.addToastFn(msg, type); };
+const POSTHOG_KEY_STORAGE = 'notary_posthog_key';
+const track = (eventName, props = {}) => {
+    try {
+        if (window.posthog && typeof window.posthog.capture === 'function') {
+            window.posthog.capture(eventName, props || {});
+        }
+    } catch (e) {}
+};
+const TRIAL_DAYS = 14;
 
         const ToastContainer = () => {
             const [toasts, setToasts] = useState([]);
@@ -884,8 +893,6 @@ const SetupChecklistCard = ({ user, appointments, setView, onOpenSettings }) => 
             };
 
 
-            const [posthogKey, setPosthogKey] = useState(localStorage.getItem(POSTHOG_KEY_STORAGE) || "");
-
             const handleOpenBilling = () => {
                 if (typeof onOpenBillingPortal === 'function') return onOpenBillingPortal();
                 if (STRIPE_BILLING_PORTAL_URL) window.open(STRIPE_BILLING_PORTAL_URL, '_blank');
@@ -1470,8 +1477,7 @@ const SetupChecklistCard = ({ user, appointments, setView, onOpenSettings }) => 
                 <div className="min-h-screen landing-bg text-white font-inter flex flex-col relative overflow-x-hidden">
                     {infoContent && <InfoModal title={infoContent.title} content={infoContent.content} onClose={() => setInfoContent(null)} />}
                     <div className="w-full p-6 flex justify-between items-center z-20 container mx-auto">
-                        </div>
-                                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                             <i className="fas fa-file-signature text-xl text-teal-400"></i>
                             <h1 className="text-xl font-bold tracking-tight font-sans">NotaryOS</h1>
                         </div>
@@ -2147,14 +2153,30 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
             };
 
             const handleGoogleAuth = async () => {
+                setError('');
                 setIsLoading(true);
-                try { 
-                    const provider = new firebase.auth.GoogleAuthProvider(); 
-                    await firebase.auth().signInWithPopup(provider); 
-                } catch (err) { 
-                    setError(err.message); 
+                try {
+                    if (!window.firebase || !firebase.auth) {
+                        throw new Error('Google sign-in is not configured on this device.');
+                    }
+                    const provider = new firebase.auth.GoogleAuthProvider();
+                    const result = await firebase.auth().signInWithPopup(provider);
+                    const fbUser = result?.user || firebase.auth().currentUser;
+                    if (!fbUser) {
+                        throw new Error('Google sign-in did not return a user profile. Please try again.');
+                    }
+                    onAuth({
+                        id: fbUser.uid || 'google-user',
+                        name: fbUser.displayName || 'User',
+                        email: fbUser.email || formData.email || '',
+                        plan: 'free',
+                        role: 'solo'
+                    });
+                } catch (err) {
+                    setError(err?.message || 'Google sign-in failed. Please try again.');
+                } finally {
                     setIsLoading(false);
-                } 
+                }
             };
 
             return (
@@ -3831,8 +3853,7 @@ return (
                         expenses.length === 0 ? (
                             <EmptyState icon="fa-receipt" title="No expenses logged yet" description="Track your write-offs here." actionLabel="Add Expense" onAction={() => setShowExpenseModal(true)} colorClass="theme-text" bgClass="theme-surface-muted" />
                         ) : (
-                            
-                            {expenses.length > 0 && (
+                            <>
                                 <div className="card card-tight" style={{marginBottom:12}}>
                                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, flexWrap:'wrap'}}>
                                         <div className="theme-text" style={{fontWeight:900}}>
@@ -3851,9 +3872,8 @@ return (
                                         </div>
                                     </div>
                                 </div>
-                            )}
 
-                            <div className="theme-surface theme-border border rounded-2xl divide-y theme-border">
+                                <div className="theme-surface theme-border border rounded-2xl divide-y theme-border">
                                 {expenses.map(item => (
                                     <div key={item.id} className="p-4 flex items-center justify-between gap-3 hover:theme-surface-muted transition-all duration-200">
                                         <div className="flex items-center gap-3">
@@ -3863,6 +3883,7 @@ return (
                                             <p className="font-semibold theme-text truncate"><i className={`fas ${categoryIcon(item.category)} mr-2`}></i>{item.category || 'General'}</p>
                                             <p className="text-sm theme-text-muted truncate">{item.desc || 'No description'}</p>
                                         </div>
+                                    </div>
                                         <div className="flex items-center gap-2 flex-shrink-0">
                                             <p className="font-bold" style={{ color: '#dc2626' }}>-${parseFloat(item.amount || 0).toFixed(2)}</p>
                                             <button onClick={() => startEditExpense(item)} className="theme-icon-btn" title="Edit"><i className="fas fa-pen"></i></button>
@@ -3871,6 +3892,7 @@ return (
                                     </div>
                                 ))}
                             </div>
+                            </>
                         )
                     ) : (
                         mileage.length === 0 ? (
