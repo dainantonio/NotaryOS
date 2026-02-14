@@ -16,12 +16,13 @@
 // but Google sign-in will show "not configured".
 
 window.FIREBASE_CONFIG = {
-  // apiKey: "...",
-  // authDomain: "...",
-  // projectId: "...",
-  // storageBucket: "...",
-  // messagingSenderId: "...",
-  // appId: "..."
+    apiKey: "AIzaSyA32kVbmGOcY_CdDymrom9rWVzyXTj3so0",
+    authDomain: "notaryos-67cd2.firebaseapp.com",
+    databaseURL: "https://notaryos-67cd2-default-rtdb.firebaseio.com",
+    projectId: "notaryos-67cd2",
+    storageBucket: "notaryos-67cd2.firebasestorage.app",
+    messagingSenderId: "660325303334",
+    appId: "1:660325303334:web:bb0f062fd4da8c7fca12e7"
 };
 
 (function initFirebase() {
