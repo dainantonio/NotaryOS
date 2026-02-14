@@ -73,6 +73,7 @@
         };
 
 const showToast = (msg, type = 'success') => { if (window.addToastFn) window.addToastFn(msg, type); };
+const TRIAL_DAYS = 14;
 
         const ToastContainer = () => {
             const [toasts, setToasts] = useState([]);
