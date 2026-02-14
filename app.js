@@ -2802,6 +2802,33 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                 { label: 'Ask AI Coach', icon: 'fa-robot', onClick: () => setView('trainer') }
             ];
 
+            const dailyBrief = {
+                jobsToday: todaysJobs.length,
+                potentialRevenue: todaysJobs.reduce((sum, a) => sum + parseFloat(a.fee || 0), 0),
+                openRisks: (urgentCred ? 1 : 0) + (unpaidInvoices > 0 ? 1 : 0)
+            };
+
+            const actionItems = [
+                {
+                    key: 'credentials',
+                    priority: urgentCred ? (urgentCred.daysLeft <= 30 ? 100 : 70) : 20,
+                    onClick: () => setView('credentials'),
+                    icon: 'fas fa-triangle-exclamation',
+                    iconClass: urgentCred ? (urgentCred.daysLeft <= 30 ? 'text-red-500' : 'text-amber-500') : 'text-emerald-500',
+                    title: urgentCred ? `${urgentCred.name || 'Credential'} expires in ${urgentCred.daysLeft} days` : 'Credentials healthy',
+                    subtitle: 'Open Credentials'
+                },
+                {
+                    key: 'finances',
+                    priority: unpaidInvoices > 0 ? 90 : 30,
+                    onClick: () => setView('finances'),
+                    icon: 'fas fa-file-invoice-dollar',
+                    iconClass: unpaidInvoices > 0 ? 'text-red-500' : 'text-emerald-500',
+                    title: `${unpaidInvoices} invoice${unpaidInvoices === 1 ? '' : 's'} unpaid`,
+                    subtitle: 'Review Finances'
+                }
+            ].sort((a, b) => b.priority - a.priority);
+
             return (
                 <div className="p-6 pb-24 space-y-6 font-sans">
                     <div className="overflow-hidden">
@@ -2959,14 +2986,12 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                             <div className="theme-surface theme-border border rounded-xl p-5 shadow-sm">
                                 <h3 className="text-lg font-bold theme-text mb-4">Action Items</h3>
                                 <div className="space-y-3">
-                                    <button onClick={() => setView('credentials')} className="w-full text-left p-3 rounded-xl theme-surface-muted hover:-translate-y-0.5 transition-all duration-200">
-                                        <p className="text-sm font-semibold theme-text truncate"><i className="fas fa-triangle-exclamation text-amber-500 mr-2"></i>{urgentCred ? `${urgentCred.name || 'Credential'} expires in ${urgentCred.daysLeft} days` : 'Credentials healthy'}</p>
-                                        <p className="text-xs theme-text-muted mt-1">Open Credentials</p>
-                                    </button>
-                                    <button onClick={() => setView('finances')} className="w-full text-left p-3 rounded-xl theme-surface-muted hover:-translate-y-0.5 transition-all duration-200">
-                                        <p className="text-sm font-semibold theme-text truncate"><i className="fas fa-file-invoice-dollar text-red-500 mr-2"></i>{unpaidInvoices} invoice{unpaidInvoices === 1 ? '' : 's'} unpaid</p>
-                                        <p className="text-xs theme-text-muted mt-1">Review Finances</p>
-                                    </button>
+                                    {actionItems.map(item => (
+                                        <button key={item.key} onClick={item.onClick} className="w-full text-left p-3 rounded-xl theme-surface-muted hover:-translate-y-0.5 transition-all duration-200">
+                                            <p className="text-sm font-semibold theme-text truncate"><i className={`${item.icon} ${item.iconClass} mr-2`}></i>{item.title}</p>
+                                            <p className="text-xs theme-text-muted mt-1">{item.subtitle}</p>
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                         </div>
