@@ -73,14 +73,6 @@
         };
 
 const showToast = (msg, type = 'success') => { if (window.addToastFn) window.addToastFn(msg, type); };
-const POSTHOG_KEY_STORAGE = 'notary_posthog_key';
-const track = (eventName, props = {}) => {
-    try {
-        if (window.posthog && typeof window.posthog.capture === 'function') {
-            window.posthog.capture(eventName, props || {});
-        }
-    } catch (e) {}
-};
 const TRIAL_DAYS = 14;
 
         const ToastContainer = () => {
