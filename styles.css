@@ -1182,5 +1182,371 @@ canvas {
 [data-theme="midnight"] .sched-kpi {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
+/* ============================================================
+   NOTARYOS — FORTUNE 500 ENTERPRISE DASHBOARD REDESIGN
+   Paste this entire block at the END of your existing styles.css
+   (You can remove the previous dashboard glassmorphism CSS or keep it —
+    the new .f5-* classes won't conflict.)
+   ============================================================ */
+
+/* --- Dashboard Page Container --- */
+.f5-dash {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 24px 24px 96px;
+    font-family: 'Poppins', 'Inter', -apple-system, sans-serif;
+}
+@media (max-width: 640px) { .f5-dash { padding: 16px 12px 96px; } }
+
+/* --- Section Title --- */
+.f5-section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ui-text, #0f172a);
+    letter-spacing: -0.01em;
+    margin-bottom: 16px;
+}
+.f5-section-subtitle {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ui-text-muted, #94a3b8);
+    margin-left: 8px;
+}
+
+/* --- Card System --- */
+.f5-card {
+    background: #ffffff;
+    border: 1px solid #e8ecf1;
+    border-radius: 12px;
+    padding: 20px;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.f5-card:hover {
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+    border-color: #d4dbe6;
+}
+.f5-card-flat {
+    background: #ffffff;
+    border: 1px solid #e8ecf1;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+/* --- KPI Card --- */
+.f5-kpi {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 110px;
+}
+.f5-kpi-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    margin-bottom: 6px;
+}
+.f5-kpi-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+}
+.f5-kpi-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+}
+.f5-kpi-spark {
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+/* --- Delta Badges --- */
+.f5-delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+.f5-delta-up {
+    background: rgba(16, 185, 129, 0.10);
+    color: #059669;
+}
+.f5-delta-down {
+    background: rgba(239, 68, 68, 0.10);
+    color: #dc2626;
+}
+.f5-delta-neutral {
+    background: rgba(148, 163, 184, 0.10);
+    color: #64748b;
+}
+
+/* --- Quick Action Buttons --- */
+.f5-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    background: #1e293b;
+    color: #ffffff;
+    border: 1px solid #1e293b;
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+.f5-btn-primary:hover { background: #334155; border-color: #334155; }
+
+.f5-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    background: #ffffff;
+    color: #334155;
+    border: 1px solid #d4dbe6;
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+.f5-btn-secondary:hover { background: #f8fafc; border-color: #94a3b8; }
+
+/* --- Progress Bar --- */
+.f5-progress-track {
+    width: 100%;
+    height: 8px;
+    background: #e8ecf1;
+    border-radius: 999px;
+    overflow: hidden;
+}
+.f5-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.5s ease;
+}
+
+/* --- Pipeline Bar (stacked) --- */
+.f5-pipeline-track {
+    display: flex;
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: #e8ecf1;
+}
+.f5-pipeline-seg {
+    height: 100%;
+    transition: width 0.4s ease;
+}
+
+/* --- Donut Chart (CSS only) --- */
+.f5-donut-wrap {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+}
+.f5-donut-svg {
+    transform: rotate(-90deg);
+}
+.f5-donut-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+/* --- Upcoming List --- */
+.f5-upcoming-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+.f5-upcoming-item:last-child { border-bottom: none; }
+.f5-upcoming-time {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f172a;
+    white-space: nowrap;
+    min-width: 56px;
+}
+.f5-upcoming-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+}
+.f5-upcoming-meta {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+/* --- Action Items --- */
+.f5-action-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+}
+.f5-action-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    border: 2px solid #94a3b8;
+}
+.f5-action-dot-warn { border-color: #f59e0b; }
+.f5-action-dot-ok { border-color: #10b981; }
+.f5-action-text {
+    font-size: 13px;
+    color: #475569;
+}
+
+/* --- Sparkline SVG --- */
+.f5-sparkline { opacity: 0.6; }
+.f5-sparkline:hover { opacity: 1; }
+
+/* --- Recent Activity Table --- */
+.f5-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.f5-table th {
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: left;
+    padding: 8px 0;
+    border-bottom: 1px solid #e8ecf1;
+}
+.f5-table td {
+    font-size: 13px;
+    color: #334155;
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+.f5-table tr:last-child td { border-bottom: none; }
+.f5-table-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+/* --- Setup Progress (de-emphasized) --- */
+.f5-setup-bar {
+    margin-top: 32px;
+    padding: 20px;
+    background: #f8fafc;
+    border: 1px solid #e8ecf1;
+    border-radius: 12px;
+}
+
+/* --- Link button --- */
+.f5-link {
+    font-size: 13px;
+    font-weight: 600;
+    color: #4f46e5;
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+.f5-link:hover { color: #3730a3; }
+
+/* --- Grid Layout --- */
+.f5-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+.f5-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+.f5-grid-main {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+}
+@media (max-width: 1024px) {
+    .f5-grid-3 { grid-template-columns: repeat(2, 1fr); }
+    .f5-grid-main { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+    .f5-grid-3 { grid-template-columns: 1fr; }
+    .f5-grid-2 { grid-template-columns: 1fr; }
+}
+
+/* --- Fade-in animation (subtle) --- */
+@keyframes f5FadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.f5-anim { animation: f5FadeIn 0.4s ease forwards; opacity: 0; }
+.f5-d1 { animation-delay: 0.05s; }
+.f5-d2 { animation-delay: 0.10s; }
+.f5-d3 { animation-delay: 0.15s; }
+.f5-d4 { animation-delay: 0.20s; }
+.f5-d5 { animation-delay: 0.25s; }
+.f5-d6 { animation-delay: 0.30s; }
+.f5-d7 { animation-delay: 0.35s; }
+.f5-d8 { animation-delay: 0.40s; }
+
+/* --- Theme overrides --- */
+[data-theme="dark"] .f5-card,
+[data-theme="midnight"] .f5-card {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .f5-card-flat,
+[data-theme="midnight"] .f5-card-flat {
+    background: rgba(30, 41, 59, 0.5);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+[data-theme="dark"] .f5-kpi-value,
+[data-theme="midnight"] .f5-kpi-value { color: #e2e8f0; }
+[data-theme="dark"] .f5-kpi-label,
+[data-theme="midnight"] .f5-kpi-label { color: #94a3b8; }
+[data-theme="dark"] .f5-upcoming-time,
+[data-theme="dark"] .f5-upcoming-name,
+[data-theme="midnight"] .f5-upcoming-time,
+[data-theme="midnight"] .f5-upcoming-name { color: #e2e8f0; }
+[data-theme="dark"] .f5-table th,
+[data-theme="midnight"] .f5-table th { color: #64748b; }
+[data-theme="dark"] .f5-table td,
+[data-theme="midnight"] .f5-table td { color: #cbd5e1; border-color: rgba(255,255,255,0.06); }
+[data-theme="dark"] .f5-setup-bar,
+[data-theme="midnight"] .f5-setup-bar { background: rgba(15,23,42,0.4); border-color: rgba(255,255,255,0.06); }
+[data-theme="dark"] .f5-btn-primary,
+[data-theme="midnight"] .f5-btn-primary { background: #4f46e5; border-color: #4f46e5; }
+[data-theme="dark"] .f5-btn-secondary,
+[data-theme="midnight"] .f5-btn-secondary { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); color: #e2e8f0; }
+[data-theme="dark"] .f5-progress-track,
+[data-theme="midnight"] .f5-progress-track { background: rgba(255,255,255,0.08); }
+[data-theme="dark"] .f5-pipeline-track,
+[data-theme="midnight"] .f5-pipeline-track { background: rgba(255,255,255,0.08); }
+[data-theme="dark"] .f5-donut-label,
+[data-theme="midnight"] .f5-donut-label { color: #e2e8f0; }
 
 
