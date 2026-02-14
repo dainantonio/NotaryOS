@@ -944,4 +944,243 @@ canvas {
 [data-theme="midnight"] .kpi-enhanced:hover {
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
 }
+/* ============================================================
+   NOTARYOS — SCHEDULE ENHANCEMENT: GLASSMORPHISM + ANIMATIONS
+   Paste this entire block at the END of your existing styles.css
+   ============================================================ */
+
+/* --- Schedule Page Background --- */
+.sched-bg-mesh {
+    position: relative;
+}
+.sched-bg-mesh::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 550px;
+    background:
+        radial-gradient(ellipse at 10% 15%, rgba(34, 197, 94, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+        radial-gradient(ellipse at 45% 75%, rgba(168, 85, 247, 0.04) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
+.sched-bg-mesh > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* --- Schedule KPI Cards --- */
+.sched-kpi {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sched-kpi:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.07);
+}
+
+/* --- Appointment Row Cards --- */
+.appt-row {
+    position: relative;
+    overflow: hidden;
+    border-radius: 18px;
+    transition: all 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.appt-row:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.07), 0 4px 10px rgba(0, 0, 0, 0.03);
+    border-color: rgba(99, 102, 241, 0.25) !important;
+}
+
+/* Date badge inside appointment row */
+.appt-date-badge {
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+}
+.appt-date-badge::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04));
+    pointer-events: none;
+}
+
+/* --- Status Pills (enhanced) --- */
+.sched-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    transition: transform 0.2s ease;
+}
+.sched-status:hover { transform: scale(1.05); }
+
+.sched-status-scheduled {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(251, 191, 36, 0.08));
+    color: #b45309;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+.sched-status-completed {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(99, 102, 241, 0.08));
+    color: #1d4ed8;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+.sched-status-paid {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(52, 211, 153, 0.08));
+    color: #047857;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+.sched-status-cancelled {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(248, 113, 113, 0.08));
+    color: #b91c1c;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* --- Filter Tab Pills --- */
+.sched-filter {
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    border: 1px solid transparent;
+    transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.sched-filter:hover {
+    background: rgba(255, 255, 255, 0.7);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+.sched-filter-active {
+    background: linear-gradient(135deg, var(--ui-accent-start, #4f46e5), var(--ui-accent-end, #2563eb)) !important;
+    color: #fff !important;
+    border-color: rgba(79, 70, 229, 0.3) !important;
+    box-shadow: 0 6px 18px rgba(79, 70, 229, 0.25);
+}
+
+/* --- Appointment Action Buttons --- */
+.appt-action-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(226, 232, 240, 0.7);
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    color: var(--ui-text-muted, #64748b);
+    transition: all 0.2s ease;
+    font-size: 11px;
+}
+.appt-action-btn:hover {
+    transform: scale(1.1);
+    border-color: rgba(99, 102, 241, 0.4);
+    color: #4f46e5;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.12);
+    background: rgba(255, 255, 255, 0.85);
+}
+.appt-action-btn-pay:hover {
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #059669;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.12);
+}
+
+/* --- Fee display gradient --- */
+.appt-fee {
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+}
+.appt-fee-paid {
+    background: linear-gradient(135deg, #059669, #34d399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.appt-fee-default {
+    color: var(--ui-text, #0f172a);
+}
+
+/* --- Empty state illustration area --- */
+.sched-empty-ring {
+    width: 72px;
+    height: 72px;
+    border-radius: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04));
+    border: 2px dashed rgba(99, 102, 241, 0.2);
+    animation: float 3s ease-in-out infinite;
+}
+
+/* --- Micro-interaction: row highlight on appointment today --- */
+.appt-row-today {
+    border-left: 3px solid #6366f1 !important;
+}
+.appt-row-today .appt-date-badge::before {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(59, 130, 246, 0.10));
+}
+
+/* --- Calendar mini-map dot indicator --- */
+.sched-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    flex-shrink: 0;
+}
+.sched-dot-green { background: #10b981; }
+.sched-dot-blue { background: #3b82f6; }
+.sched-dot-amber { background: #f59e0b; }
+.sched-dot-red { background: #ef4444; }
+
+/* --- Theme overrides for dark modes --- */
+[data-theme="dark"] .appt-row,
+[data-theme="midnight"] .appt-row {
+    background: rgba(30, 41, 59, 0.55);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+[data-theme="dark"] .appt-row:hover,
+[data-theme="midnight"] .appt-row:hover {
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.25);
+    border-color: rgba(99, 102, 241, 0.3) !important;
+}
+[data-theme="dark"] .sched-filter,
+[data-theme="midnight"] .sched-filter {
+    background: rgba(30, 41, 59, 0.6);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+[data-theme="dark"] .appt-action-btn,
+[data-theme="midnight"] .appt-action-btn {
+    background: rgba(30, 41, 59, 0.5);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .appt-date-badge::before,
+[data-theme="midnight"] .appt-date-badge::before {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.08));
+}
+[data-theme="dark"] .sched-kpi,
+[data-theme="midnight"] .sched-kpi {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
 
