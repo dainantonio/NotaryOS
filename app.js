@@ -2847,7 +2847,7 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                         ))}
                     </div>
 
-                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    <div className="dashboard-flow grid grid-cols-1 xl:grid-cols-3 gap-6">
                         <div className="xl:col-span-2 space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="card card--primary theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
