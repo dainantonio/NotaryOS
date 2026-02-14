@@ -43,7 +43,14 @@
   <div id="root"></div>
 
   <!-- App (split out for stability; still "single page" UX) -->
-  <script type="text/babel" data-presets="env,react" src="app.js"></script>
+ <script type="text/babel" data-presets="env,react" src="js/data/dashboardApi.js"></script>
+
+<script type="text/babel" data-presets="env,react" src="js/components/dashboard/Donut.js"></script>
+<script type="text/babel" data-presets="env,react" src="js/components/dashboard/SparkLine.js"></script>
+<script type="text/babel" data-presets="env,react" src="js/components/dashboard/RevenueChart.js"></script>
+<script type="text/babel" data-presets="env,react" src="js/components/dashboard/Dashboard.js"></script>
+
+<script type="text/babel" data-presets="env,react" src="app.js"></script>
 
   <script>
     // PWA Service Worker (offline cache)
