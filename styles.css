@@ -446,3 +446,49 @@ button, input{ font-family: inherit; }
 .f5-list-skel .time{ height: 12px; border-radius: 999px; }
 .f5-list-skel .text{ display: grid; gap: 6px; }
 .f5-list-skel .icon{ width: 18px; height: 18px; border-radius: 6px; }
+
+/* =========================================================
+   Mobile sidebar drawer (hamburger)
+   ========================================================= */
+
+.shell-hamburger{
+  display: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(226,232,240,0.9);
+  background: #fff;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  font-weight: 900;
+}
+
+.shell-drawer-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(2,6,23,0.45);
+  z-index: 80;
+}
+
+@media (max-width: 900px){
+  .shell-hamburger{ display: inline-flex; }
+
+  /* turn sidebar into off-canvas */
+  .sidebar{
+    width: 260px;
+    transform: translateX(-105%);
+    transition: transform .18s ease;
+    box-shadow: 0 20px 60px rgba(2,6,23,0.35);
+  }
+
+  .sidebar.is-open{
+    transform: translateX(0);
+  }
+
+  .main-content{
+    margin-left: 0;
+    padding: 0 14px 24px;
+  }
+}
