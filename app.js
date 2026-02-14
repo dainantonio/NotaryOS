@@ -1470,8 +1470,7 @@ const SetupChecklistCard = ({ user, appointments, setView, onOpenSettings }) => 
                 <div className="min-h-screen landing-bg text-white font-inter flex flex-col relative overflow-x-hidden">
                     {infoContent && <InfoModal title={infoContent.title} content={infoContent.content} onClose={() => setInfoContent(null)} />}
                     <div className="w-full p-6 flex justify-between items-center z-20 container mx-auto">
-                        </div>
-                                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                             <i className="fas fa-file-signature text-xl text-teal-400"></i>
                             <h1 className="text-xl font-bold tracking-tight font-sans">NotaryOS</h1>
                         </div>
