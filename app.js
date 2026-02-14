@@ -73,14 +73,6 @@
         };
 
 const showToast = (msg, type = 'success') => { if (window.addToastFn) window.addToastFn(msg, type); };
-const POSTHOG_KEY_STORAGE = 'notary_posthog_key';
-const track = (eventName, props = {}) => {
-    try {
-        if (window.posthog && typeof window.posthog.capture === 'function') {
-            window.posthog.capture(eventName, props || {});
-        }
-    } catch (e) {}
-};
 const TRIAL_DAYS = 14;
 
         const ToastContainer = () => {
@@ -2857,7 +2849,7 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
 
                     <div className="dashboard-flow grid grid-cols-1 xl:grid-cols-3 gap-6">
                         <div className="xl:col-span-2 space-y-6">
-                            <div className="kpi-grid grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="card card--primary theme-surface theme-border border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 overflow-hidden">
                                     <p className="theme-text-muted text-xs font-semibold uppercase tracking-wide mb-2">Revenue (YTD)</p>
                                     <p className="text-3xl font-bold theme-text truncate">${ytdRevenue.toLocaleString()}</p>
@@ -2928,7 +2920,7 @@ const TrialExpiredScreen = ({ trialEndsAt, onUpgrade, onOpenBillingPortal, onLog
                             </div>
                         </div>
 
-                        <div className="right-rail xl:col-span-1 space-y-6">
+                        <div className="xl:col-span-1 space-y-6">
                             <div className="card card--primary theme-surface theme-border border rounded-xl p-5 shadow-sm">
                                 <div className="flex items-center justify-between mb-4">
                                     <h3 className="text-lg font-bold theme-text">Today's Agenda</h3>
